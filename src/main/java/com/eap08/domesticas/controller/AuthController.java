@@ -1,8 +1,11 @@
 package com.eap08.domesticas.controller;
 
 import com.eap08.domesticas.dto.AuthResponse;
+import com.eap08.domesticas.dto.ForgotPasswordRequest;
 import com.eap08.domesticas.dto.LoginRequest;
+import com.eap08.domesticas.dto.MessageResponse;
 import com.eap08.domesticas.dto.RegisterRequest;
+import com.eap08.domesticas.dto.ResetPasswordRequest;
 import com.eap08.domesticas.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -46,11 +49,24 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout() {
-    // En una arquitectura JWT stateless, el logout se maneja del lado del cliente
-    // descartando el token. El servidor no necesita hacer nada adicional.
-    // Devolvemos 204 No Content porque la operación fue exitosa pero no hay
-    // nada que retornar en el cuerpo de la respuesta.
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<MessageResponse> logout() {
+        // Aunque en JWT stateless el servidor no invalida ningún estado,
+        // devolvemos un mensaje explícito para que el cliente sepa que debe
+        // descartar el token localmente. Es una confirmación de contrato.
+        return ResponseEntity.ok(new MessageResponse("Sesión cerrada correctamente"));
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<MessageResponse> forgotPassword(
+        @Valid @RequestBody ForgotPasswordRequest request) {
+        return ResponseEntity.ok(authService.forgotPassword(request));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<MessageResponse> resetPassword(
+        @Valid @RequestBody ResetPasswordRequest request) {
+    return ResponseEntity.ok(authService.resetPassword(request));
+    }
+
+
 }
