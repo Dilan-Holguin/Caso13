@@ -4,10 +4,12 @@ import com.eap08.domesticas.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,7 +44,24 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleBadCredentials(
+            BadCredentialsException ex,
+            HttpServletRequest request) {
 
+        ErrorResponse error = ErrorResponse.builder()
+                .errorCode("INVALID_CREDENTIALS")
+                // Mensaje genérico deliberado — nunca le digas al cliente si
+                // el error fue el email o la contraseña, porque eso le da
+                // información útil a alguien intentando adivinar credenciales
+                .message("Correo o contraseña incorrectos")
+                .details(List.of())
+                .traceId(UUID.randomUUID().toString())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    }
     // Maneja errores de lógica de negocio — como el correo duplicado
     // que lanzamos en AuthServiceImpl con throw new RuntimeException(...)
     @ExceptionHandler(RuntimeException.class)

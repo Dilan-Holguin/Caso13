@@ -1,6 +1,7 @@
 package com.eap08.domesticas.controller;
 
 import com.eap08.domesticas.dto.AuthResponse;
+import com.eap08.domesticas.dto.LoginRequest;
 import com.eap08.domesticas.dto.RegisterRequest;
 import com.eap08.domesticas.service.AuthService;
 import jakarta.validation.Valid;
@@ -20,20 +21,36 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         AuthResponse response = authService.register(request);
-
-        // Agregamos los enlaces HATEOAS a la respuesta
-        // self — apunta al endpoint que acaba de ser llamado
         response.add(WebMvcLinkBuilder
                 .linkTo(WebMvcLinkBuilder.methodOn(AuthController.class).register(null))
                 .withSelfRel());
-
-        // login — le dice al cliente que el siguiente paso lógico es iniciar sesión
-        // Por ahora apunta al mismo controlador porque login aún no existe,
-        // lo actualizaremos cuando implementemos ese endpoint
+        // Ahora sí apunta al método login real
         response.add(WebMvcLinkBuilder
-                .linkTo(WebMvcLinkBuilder.methodOn(AuthController.class).register(null))
+                .linkTo(WebMvcLinkBuilder.methodOn(AuthController.class).login(null))
                 .withRel("login"));
-
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        AuthResponse response = authService.login(request);
+        response.add(WebMvcLinkBuilder
+                .linkTo(WebMvcLinkBuilder.methodOn(AuthController.class).login(null))
+                .withSelfRel());
+        // Le dice al cliente que desde aquí puede ir a ver los hogares
+        // Este enlace lo actualizaremos cuando creemos el HogarController
+        response.add(WebMvcLinkBuilder
+                .linkTo(WebMvcLinkBuilder.methodOn(AuthController.class).login(null))
+                .withRel("hogares"));
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+    // En una arquitectura JWT stateless, el logout se maneja del lado del cliente
+    // descartando el token. El servidor no necesita hacer nada adicional.
+    // Devolvemos 204 No Content porque la operación fue exitosa pero no hay
+    // nada que retornar en el cuerpo de la respuesta.
+        return ResponseEntity.noContent().build();
     }
 }

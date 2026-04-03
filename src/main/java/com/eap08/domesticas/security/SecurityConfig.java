@@ -1,8 +1,12 @@
 package com.eap08.domesticas.security;
 
+import com.eap08.domesticas.service.impl.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -15,45 +19,43 @@ import org.springframework.security.web.SecurityFilterChain;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    private final UserDetailsServiceImpl userDetailsService;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // Deshabilitamos CSRF porque nuestra API usa JWT en lugar de sesiones.
-            // CSRF protege contra ataques en aplicaciones con sesiones de servidor,
-            // pero en una API stateless con tokens no aplica.
             .csrf(csrf -> csrf.disable())
-
-            // Le decimos a Spring que no cree ni use sesiones HTTP.
-            // Cada petición debe ser autónoma y autenticarse con su propio token JWT.
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
             .authorizeHttpRequests(auth -> auth
-                // El registro y login deben ser públicos — obviamente nadie
-                // puede autenticarse si primero no puede crear su cuenta
                 .requestMatchers("/api/auth/**").permitAll()
-
-                // Swagger necesita acceso público para que el equipo pueda
-                // consultar la documentación sin necesidad de estar autenticado.
-                // /swagger-ui/** cubre la interfaz visual
-                // /v3/api-docs/** cubre el JSON con la especificación OpenAPI
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-
-                // Cualquier otro endpoint que agreguemos en el futuro
-                // va a requerir un JWT válido automáticamente
                 .anyRequest().authenticated()
             );
-
         return http.build();
+    }
+
+    // DaoAuthenticationProvider une el UserDetailsService con el PasswordEncoder.
+    // Cuando alguien intenta autenticarse, este provider carga el usuario por email
+    // y compara la contraseña enviada contra el hash almacenado usando BCrypt.
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
+    }
+
+    // El AuthenticationManager es el punto de entrada para iniciar el proceso
+    // de autenticación — lo usaremos directamente en el servicio de login.
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // BCrypt es el algoritmo estándar para hashear contraseñas.
-        // A diferencia de un hash simple como MD5, BCrypt incluye un "salt"
-        // aleatorio en cada hash, lo que significa que la misma contraseña
-        // genera un hash diferente cada vez — esto protege contra ataques
-        // de diccionario y rainbow tables.
         return new BCryptPasswordEncoder();
     }
 }
