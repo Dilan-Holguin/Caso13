@@ -1,0 +1,22 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres_domesticas
+    environment:
+      POSTGRES_DB: domesticas_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      # Este volumen persiste los datos entre reinicios del contenedor
+      - postgres_data:/var/lib/postgresql/data
+      # Este volumen mapea tu carpeta local init-db a la carpeta mágica
+      # de PostgreSQL que ejecuta scripts al inicializar
+      - ./init-db:/docker-entrypoint-initdb.d
+    restart: always
+
+volumes:
+  postgres_data:
