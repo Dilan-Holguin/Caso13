@@ -5,18 +5,19 @@ services:
     image: postgres:15
     container_name: postgres_domesticas
     environment:
-      POSTGRES_DB: domesticas_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${SPRING_DATASOURCE_DB:-domesticas_db}
+      POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-postgres}
     ports:
       - "5432:5432"
     volumes:
-      # Este volumen persiste los datos entre reinicios del contenedor
       - postgres_data:/var/lib/postgresql/data
-      # Este volumen mapea tu carpeta local init-db a la carpeta mágica
-      # de PostgreSQL que ejecuta scripts al inicializar
-      - ./init-db:/docker-entrypoint-initdb.d
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SPRING_DATASOURCE_USERNAME:-postgres} -d ${SPRING_DATASOURCE_DB:-domesticas_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

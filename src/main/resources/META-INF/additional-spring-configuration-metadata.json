@@ -1,0 +1,31 @@
+{
+  "properties": [
+    {
+      "name": "app.jwt.secret",
+      "type": "java.lang.String",
+      "description": "Clave secreta para firmar y verificar tokens JWT."
+    },
+    {
+      "name": "app.jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "Tiempo de expiracion del token JWT en milisegundos.",
+      "defaultValue": 86400000
+    },
+    {
+      "name": "app.frontend.url",
+      "type": "java.lang.String",
+      "description": "URL del frontend para construir enlaces en correos electronicos."
+    },
+    {
+      "name": "app.cors.origins",
+      "type": "java.lang.String",
+      "description": "Origenes permitidos para CORS, separados por coma."
+    },
+    {
+      "name": "springdoc.use-hateoas",
+      "type": "java.lang.Boolean",
+      "description": "Habilita o deshabilita el soporte de HATEOAS en springdoc-openapi.",
+      "defaultValue": false
+    }
+  ]
+}

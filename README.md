@@ -1,130 +1,139 @@
 # Domésticas API
 
-Backend REST para la gestión de tareas del hogar. Construido con Spring Boot 3.5, PostgreSQL y Docker.
+Backend REST para la gestión de tareas del hogar. Construido con Spring Boot 3.5, PostgreSQL, Flyway y Docker.
 
 ---
 
 ## Tecnologías
 
 - **Java 21** + **Spring Boot 3.5.13**
-- **Spring Security** + **JWT** para autenticación
+- **Spring Security** + **JWT** (filtro de autenticación implementado)
 - **Spring Data JPA** + **Hibernate** para persistencia
+- **Flyway** para migraciones versionadas de base de datos
 - **PostgreSQL 15** como base de datos
 - **Docker Desktop** para correr la base de datos localmente
 - **Mailtrap** para pruebas de envío de correo
-- **Springdoc OpenAPI** (Swagger UI) para documentación de endpoints
+- **Springdoc OpenAPI** (Swagger UI) para documentación interactiva de endpoints
 
 ---
 
 ## Requisitos previos
 
-Antes de clonar y correr el proyecto, asegúrate de tener instalado lo siguiente en tu máquina.
-
-- [Java 21](https://adoptium.net/) — puedes verificar con `java -version`
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — para levantar la base de datos
-- Una cuenta gratuita en [Mailtrap](https://mailtrap.io) — para probar el envío de correos de recuperación de contraseña
+- [Java 21](https://adoptium.net/)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- Cuenta gratuita en [Mailtrap](https://mailtrap.io) (para probar recuperación de contraseña)
 
 ---
 
 ## Configuración paso a paso
 
-### 1. Clonar el repositorio
+### 1. Clonar y configurar variables de entorno
 
 ```bash
 git clone https://github.com/tu-usuario/domesticas.git
 cd domesticas
+cp .env.example .env
+# Edita .env con tus credenciales de Mailtrap y ajusta el JWT_SECRET
 ```
 
-### 2. Levantar la base de datos con Docker
-
-El proyecto incluye un `docker-compose.yml` en la raíz con toda la configuración necesaria. El primer `docker compose up` ejecuta automáticamente el script `init-db/01_schema.sql` que crea todas las tablas del esquema.
+### 2. Levantar la base de datos
 
 ```bash
 docker compose up -d
 ```
 
-Puedes verificar que las tablas se crearon correctamente con este comando:
+### 3. Ejecutar migraciones (Flyway)
 
 ```bash
-docker exec -it postgres_domesticas psql -U postgres -d domesticas_db -c "\dt"
+./scripts/deploy-db.sh local
 ```
 
-Deberías ver las tablas `hogar`, `usuario`, `usuario_hogar`, `tarea` y `password_reset_token`.
+### 4. Configurar Mailtrap
 
-> **Importante:** si ya tenías una versión anterior del volumen de Docker, elimínalo antes de levantar el contenedor para que el script de inicialización se ejecute desde cero. Puedes hacerlo desde la sección **Volumes** de Docker Desktop.
-
-### 3. Configurar Mailtrap
-
-El proyecto usa Mailtrap como servidor SMTP falso para capturar los correos de recuperación de contraseña durante el desarrollo, de forma que nadie recibe correos reales mientras se prueba.
-
-1. Inicia sesión en [mailtrap.io](https://mailtrap.io) y ve a **Email Testing → Inboxes → My Sandbox → Integration**.
-2. Selecciona el formato **Other: Java, Scala - Play-Mailer** para ver las credenciales.
-3. Copia el `user` y el `password` que aparecen ahí.
-
-### 4. Configurar el archivo application.properties
-
-Abre el archivo `src/main/resources/application.properties` y reemplaza los valores de Mailtrap con los de tu propia cuenta:
-
-```properties
-spring.mail.username=TU_USERNAME_DE_MAILTRAP
-spring.mail.password=TU_PASSWORD_DE_MAILTRAP
-```
-
-El resto de la configuración (base de datos, JWT, etc.) ya está lista para desarrollo local y no necesita cambios.
-
-> **Nota de seguridad:** nunca subas credenciales reales de producción (Gmail, SendGrid, etc.) al repositorio. El `application.properties` actual solo contiene credenciales de Mailtrap, que son seguras de compartir en el contexto de desarrollo de equipo.
+Edita `.env` con tus credenciales de Mailtrap (Email Testing → My Sandbox → Integration).
 
 ### 5. Ejecutar la aplicación
 
-Desde la raíz del proyecto ejecuta:
-
 ```bash
-.\mvnw spring-boot:run        # Windows (PowerShell)
-./mvnw spring-boot:run        # Mac / Linux
+./mvnw spring-boot:run
 ```
 
-No necesitas tener Maven instalado globalmente — el `mvnw` es un wrapper que descarga automáticamente la versión correcta de Maven para este proyecto.
-
-Cuando veas este mensaje en la consola, la aplicación está lista:
-
-```
-Started DomesticasApplication in X seconds
-```
+La API estará disponible en `http://localhost:8080`.
 
 ---
 
 ## Documentación interactiva (Swagger UI)
 
-Una vez que la aplicación esté corriendo, abre el navegador y ve a:
-
 ```
 http://localhost:8080/swagger-ui/index.html
 ```
 
-Ahí encontrarás todos los endpoints documentados y podrás probarlos directamente desde el navegador sin necesidad de instalar ninguna herramienta adicional.
+Para generar documentación estática:
+
+```bash
+./scripts/generate-api-docs.sh
+# Archivos generados en docs/: openapi.json, openapi.yaml, postman_collection.json
+```
 
 ---
 
 ## Endpoints disponibles
 
-Todos los endpoints se encuentran bajo el prefijo `/api`.
+Todos los prefijos bajo `/api`.
 
 ### Autenticación — `/api/auth`
 
-| Método | Endpoint | Descripción | Autenticación |
-|--------|----------|-------------|---------------|
-| POST | `/api/auth/register` | Registrar nuevo usuario | No requerida |
-| POST | `/api/auth/login` | Iniciar sesión y obtener JWT | No requerida |
-| POST | `/api/auth/logout` | Cerrar sesión | No requerida |
-| POST | `/api/auth/forgot-password` | Solicitar recuperación de contraseña | No requerida |
-| POST | `/api/auth/reset-password` | Establecer nueva contraseña con token | No requerida |
+| Método | Endpoint | Descripción | Auth |
+|--------|----------|-------------|------|
+| `POST` | `/api/auth/register` | Registrar nuevo usuario | No |
+| `POST` | `/api/auth/login` | Iniciar sesión, obtener JWT | No |
+| `POST` | `/api/auth/logout` | Cerrar sesión (cliente descarta token) | No |
+| `POST` | `/api/auth/forgot-password` | Solicitar recuperación de contraseña | No |
+| `POST` | `/api/auth/reset-password` | Establecer nueva contraseña con token | No |
 
-### Flujo de recuperación de contraseña
+### Hogares — `/api/households`
 
-1. Llama a `POST /api/auth/forgot-password` con `{ "email": "tu@correo.com" }`.
-2. Revisa la bandeja de entrada de Mailtrap — encontrarás un enlace con el token.
-3. Copia el token de la URL del enlace (el parámetro `?token=...`).
-4. Llama a `POST /api/auth/reset-password` con `{ "token": "...", "nuevaPassword": "..." }`.
+| Método | Endpoint | Descripción | Auth |
+|--------|----------|-------------|------|
+| `POST` | `/api/households` | Crear un nuevo hogar | JWT |
+| `POST` | `/api/households/{id}/invite` | Invitar miembro al hogar | JWT (Admin) |
+| `POST` | `/api/households/invitations/{token}/respond` | Aceptar/rechazar invitación | JWT |
+| `GET` | `/api/households/{id}/members` | Listar miembros del hogar | JWT (Miembro) |
+
+### Tareas — `/api/households/{id}/tasks` y `/api/tasks`
+
+| Método | Endpoint | Descripción | Auth |
+|--------|----------|-------------|------|
+| `POST` | `/api/households/{hogarId}/tasks` | Crear tarea en un hogar | JWT (Miembro) |
+| `GET` | `/api/households/{hogarId}/tasks?estado=&categoria=&asignadoA=` | Listar tareas con filtros | JWT (Miembro) |
+| `GET` | `/api/tasks/{tareaId}` | Obtener detalle de tarea | JWT (Miembro) |
+| `PUT` | `/api/tasks/{tareaId}` | Actualizar tarea | JWT (Miembro) |
+| `PATCH` | `/api/tasks/{tareaId}/status` | Cambiar estado de tarea | JWT (Miembro) |
+| `DELETE` | `/api/tasks/{tareaId}` | Eliminar tarea | JWT (Admin) |
+
+### Páginas HTML — `/join` y `/reset-password`
+
+| Método | Endpoint | Descripción | Auth |
+|--------|----------|-------------|------|
+| `GET` | `/join?token=` | Página para aceptar o rechazar invitación a un hogar | No |
+| `GET` | `/reset-password?token=` | Página para establecer nueva contraseña | No |
+
+### Flujo completo de uso
+
+1. **Registro** → `POST /api/auth/register`
+2. **Login** → `POST /api/auth/login` → obtienes JWT
+3. **Crear hogar** → `POST /api/households` (Header: `Authorization: Bearer <token>`)
+4. **Invitar miembros** → `POST /api/households/{id}/invite`
+5. **Crear tareas** → `POST /api/households/{id}/tasks`
+6. **Gestionar tareas** → `GET`, `PUT`, `PATCH` sobre `/api/tasks/{id}`
+
+### Estados de tarea
+
+`Pendiente` → `En_progreso` → `Completada`
+
+### Categorías de tarea
+
+`Limpieza`, `Cocina`, `Compras`, `Mantenimiento`, `Otro`
 
 ---
 
@@ -132,22 +141,73 @@ Todos los endpoints se encuentran bajo el prefijo `/api`.
 
 ```
 src/main/java/com/eap08/domesticas/
-├── DomesticasApplication.java    ← punto de entrada de Spring Boot
-├── controller/                   ← recibe peticiones HTTP y delega al servicio
-├── dto/                          ← objetos de transferencia de datos (entrada/salida de la API)
-├── model/                        ← entidades JPA que mapean las tablas de la BD
-├── repository/                   ← interfaces de acceso a datos (Spring Data JPA)
-├── security/                     ← configuración de Spring Security, JWT y manejo de errores
+├── DomesticasApplication.java
+├── controller/
+│   ├── AuthController.java        ← autenticación
+│   ├── HogarController.java       ← gestión de hogares
+│   ├── PageController.java        ← páginas HTML (/join, /reset-password)
+│   └── TareaController.java       ← gestión de tareas
+├── dto/
+│   ├── AuthResponse.java
+│   ├── ErrorResponse.java
+│   ├── HogarRequest.java          ← records: CreateHogar, InvitarMiembro, ResponderInvitacion
+│   ├── HogarResponse.java         ← records: HogarData, InvitacionResponse, MiembroResponse
+│   ├── TareaRequest.java          ← records: CreateTarea, UpdateTarea, UpdateStatus
+│   ├── TareaResponse.java         ← records: TareaData, TareaListData, AsignadoInfo
+│   └── ...
+├── model/
+│   ├── Hogar.java
+│   ├── InvitacionHogar.java
+│   ├── PasswordResetToken.java
+│   ├── Tarea.java
+│   ├── Usuario.java
+│   ├── UsuarioHogar.java
+│   └── UsuarioHogarId.java        ← clave compuesta embeddable
+├── repository/
+│   ├── HogarRepository.java
+│   ├── InvitacionHogarRepository.java
+│   ├── PasswordResetTokenRepository.java
+│   ├── TareaRepository.java
+│   ├── UsuarioHogarRepository.java
+│   └── UsuarioRepository.java
+├── security/
+│   ├── GlobalExceptionHandler.java
+│   ├── JwtAuthFilter.java         ← filtro JWT (nuevo)
+│   ├── JwtUtil.java
+│   └── SecurityConfig.java        ← config con JWT filter
 └── service/
-    ├── (interfaces)              ← contratos de la lógica de negocio
-    └── impl/                     ← implementaciones concretas de los servicios
+    ├── AuthService.java
+    ├── HogarService.java
+    ├── TareaService.java
+    └── impl/
+        ├── AuthServiceImpl.java
+        ├── EmailService.java
+        └── UserDetailsServiceImpl.java
+
+src/main/resources/
+├── META-INF/
+│   └── additional-spring-configuration-metadata.json  ← autocompletado IDE
+├── application.properties         ← variables de entorno con defaults
+└── db/migration/
+    ├── V1__init_schema.sql        ← esquema base
+    └── V2__invitacion_hogar.sql   ← tabla de invitaciones
+
+scripts/
+├── deploy-db.sh                   ← despliegue de migraciones
+├── generate-api-docs.sh           ← generación de OpenAPI + Postman
+└── test-api.sh                    ← 22 pruebas automatizadas de endpoints
+
+docs/
+├── openapi.json                   ← especificación OpenAPI 3.0
+├── domesticas.postman_collection.json
+└── vulnerability-report.md        ← informe de vulnerabilidades
 ```
 
 ---
 
 ## Manejo de errores
 
-Todos los errores de la API siguen una estructura uniforme:
+Todos los errores siguen una estructura uniforme:
 
 ```json
 {
@@ -159,36 +219,46 @@ Todos los errores de la API siguen una estructura uniforme:
 }
 ```
 
-Los códigos de error posibles son `VALIDATION_ERROR` (400), `INVALID_CREDENTIALS` (401), `BUSINESS_ERROR` (409) e `INTERNAL_ERROR` (500).
+Códigos: `VALIDATION_ERROR` (400), `INVALID_CREDENTIALS` (401), `BUSINESS_ERROR` (409), `INTERNAL_ERROR` (500).
 
 ---
 
-## Variables de entorno para producción
+## Autenticación
 
-Cuando se despliegue en producción (Render u otro proveedor), las siguientes variables deben configurarse como variables de entorno del servidor — nunca deben estar hardcodeadas en el código:
+Todas las peticiones a endpoints protegidos requieren el header:
 
-| Variable | Descripción |
-|----------|-------------|
-| `SPRING_DATASOURCE_URL` | URL JDBC de la base de datos en producción |
-| `SPRING_DATASOURCE_USERNAME` | Usuario de la base de datos |
-| `SPRING_DATASOURCE_PASSWORD` | Contraseña de la base de datos |
-| `APP_JWT_SECRET` | Clave secreta para firmar los tokens JWT |
-| `SPRING_MAIL_USERNAME` | Usuario SMTP del servicio de correo en producción |
-| `SPRING_MAIL_PASSWORD` | Contraseña SMTP del servicio de correo en producción |
-| `APP_FRONTEND_URL` | URL del frontend en producción |
+```
+Authorization: Bearer <jwt_token>
+```
+
+El token se obtiene mediante `POST /api/auth/login`. El filtro `JwtAuthFilter` valida automáticamente el token en cada petición. Endpoints públicos (`/api/auth/**`, Swagger) no requieren token.
+
+---
+
+## Variables de entorno
+
+| Variable | Descripción | Default (dev) |
+|----------|-------------|---------------|
+| `SPRING_DATASOURCE_URL` | URL JDBC de PostgreSQL | `jdbc:postgresql://localhost:5432/domesticas_db` |
+| `SPRING_DATASOURCE_USERNAME` | Usuario BD | `postgres` |
+| `SPRING_DATASOURCE_PASSWORD` | Contraseña BD | `postgres` |
+| `APP_JWT_SECRET` | Secreto para firmar JWT | *(cambiar en producción)* |
+| `APP_JWT_EXPIRATION` | Expiración del token (ms) | `86400000` (24h) |
+| `SPRING_MAIL_HOST` | Servidor SMTP | `sandbox.smtp.mailtrap.io` |
+| `SPRING_MAIL_PORT` | Puerto SMTP | `2525` |
+| `SPRING_MAIL_USERNAME` | Usuario SMTP | *(configurar)* |
+| `SPRING_MAIL_PASSWORD` | Contraseña SMTP | *(configurar)* |
+| `APP_FRONTEND_URL` | URL del frontend | `http://localhost:3000` |
+| `APP_CORS_ORIGINS` | Orígenes CORS (coma) | `https://project-tdwx8.vercel.app,http://localhost:3000` |
+
+---
+
+## Seguridad — Informe de vulnerabilidades
+
+Ver `docs/vulnerability-report.md` para el informe completo con 8 hallazgos documentados (corregidos y recomendaciones pendientes).
 
 ---
 
 ## Flujo de trabajo con Git
 
-El equipo trabaja con **feature branches**. Cada Historia de Usuario tiene su propia rama con el prefijo `feature/`. Cuando el trabajo esté listo, se abre un Pull Request hacia `main` para revisión antes de hacer merge.
-
-```bash
-# Crear una rama para una HU nueva
-git checkout -b feature/nombre-de-la-hu
-
-# Subir cambios durante el desarrollo
-git add .
-git commit -m "feat: descripción breve del cambio"
-git push origin feature/nombre-de-la-hu
-```
+El equipo trabaja con **feature branches**. No hacer push directo a `main` — requiere Pull Request y revisión.
