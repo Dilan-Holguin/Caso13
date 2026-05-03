@@ -27,4 +27,16 @@ public interface TareaRepository extends JpaRepository<Tarea, Long> {
                                 @Param("estado") String estado,
                                 @Param("categoria") String categoria,
                                 @Param("asignadoA") Long asignadoA);
+
+    @Query("SELECT t FROM Tarea t WHERE t.hogar.hogarId = :hogarId " +
+       "AND t.fechaLimite < CURRENT_TIMESTAMP " +
+       "AND t.estado <> 'Completada' " +
+       "ORDER BY t.fechaLimite ASC")
+    List<Tarea> findTareasVencidas(@Param("hogarId") Long hogarId);
+
+    @Query("SELECT t.asignadoA.usuarioId, t.asignadoA.nombre, COUNT(t) AS total " +
+       "FROM Tarea t WHERE t.hogar.hogarId = :hogarId AND t.estado = 'Completada' " +
+       "GROUP BY t.asignadoA.usuarioId, t.asignadoA.nombre ORDER BY total DESC")
+    List<Object[]> countTareasCompletadasPorMiembro(@Param("hogarId") Long hogarId);
+
 }
