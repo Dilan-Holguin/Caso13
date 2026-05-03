@@ -1,13 +1,26 @@
 package com.eap08.domesticas.controller;
 
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+@Tag(name = "Páginas", description = "Endpoints para páginas web de recuperación de contrasena e invitación a hogar")
 @Controller
+
 public class PageController {
 
+    @Operation(summary = "Página reset de contraseña", description = "Renderiza el formulario HTML para cambiar la contraseña usando el token recibido por email")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Página HTML renderizada"),
+        @ApiResponse(responseCode = "400", description = "Token no proporcionado")
+    })
     @GetMapping("/reset-password")
     @ResponseBody
     public String resetPasswordPage(@RequestParam String token) {
@@ -79,10 +92,17 @@ public class PageController {
             </html>
             """.replace("TOKEN_PLACEHOLDER", token);
     }
-
+      @Operation(summary = "Página de invitación", description = "Renderiza la página HTML donde el usuario puede aceptar o rechazar una invitación a un hogar")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Página HTML renderizada"),
+        @ApiResponse(responseCode = "400", description = "Token no proporcionado")
+    })
     @GetMapping("/join")
     @ResponseBody
-    public String joinPage(@RequestParam String token) {
+    public String joinPage(
+                @Parameter(description = "Token de invitación enviado al email del invitado", required = true)
+                @RequestParam String token) {
+                    
         return """
             <!DOCTYPE html>
             <html lang="es">
