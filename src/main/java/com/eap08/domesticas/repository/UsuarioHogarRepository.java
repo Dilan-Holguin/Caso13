@@ -16,4 +16,6 @@ public interface UsuarioHogarRepository extends JpaRepository<UsuarioHogar, Usua
     boolean existsByIdUsuarioIdAndIdHogarId(Long usuarioId, Long hogarId);
 
     Optional<UsuarioHogar> findByIdUsuarioIdAndIdHogarId(Long usuarioId, Long hogarId);
+
+    List<UsuarioHogar> findByIdUsuarioId(Long usuarioId);
 }
