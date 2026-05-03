@@ -3,9 +3,12 @@ package com.eap08.domesticas.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+
 import java.time.LocalDateTime;
 
 @Data
+@EqualsAndHashCode(callSuper = false)
 @Entity
 @Table(name = "usuario")
 public class Usuario {
