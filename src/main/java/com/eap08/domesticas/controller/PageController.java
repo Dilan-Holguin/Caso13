@@ -48,9 +48,9 @@ public class PageController {
                 <script>
                 async function cambiar() {
                     var pass = document.getElementById('password').value;
-                    if (pass.length < 6) {
+                    if (pass.length < 8) {
                         document.getElementById('msg').className = 'error';
-                        document.getElementById('msg').textContent = 'La contrasena debe tener al menos 6 caracteres';
+                        document.getElementById('msg').textContent = 'La contrasena debe tener al menos 8 caracteres';
                         return;
                     }
                     var btn = document.getElementById('btn');

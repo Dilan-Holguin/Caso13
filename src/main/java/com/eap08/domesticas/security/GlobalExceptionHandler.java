@@ -2,8 +2,6 @@ package com.eap08.domesticas.security;
 
 import com.eap08.domesticas.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -12,14 +10,15 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+// @RestControllerAdvice intercepta globalmente todas las excepciones
+// que escapen de cualquier controlador en la aplicación
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
-    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // Maneja los errores de validación — cuando @Valid falla en un DTO
     // Spring lanza MethodArgumentNotValidException con todos los campos inválidos
@@ -81,12 +80,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
+    // Maneja cualquier otra excepción inesperada — es el último recurso
+    // para que nunca se le devuelva al cliente un error 500 sin estructura
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex,
             HttpServletRequest request) {
-
-        log.error("Error interno: {} - {}", request.getMethod(), request.getRequestURI(), ex);
 
         ErrorResponse error = ErrorResponse.builder()
                 .errorCode("INTERNAL_ERROR")

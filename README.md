@@ -19,9 +19,11 @@ Backend REST para la gestión de tareas del hogar. Construido con Spring Boot 3.
 
 ## Requisitos previos
 
-- [Java 21](https://adoptium.net/)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- Cuenta gratuita en [Mailtrap](https://mailtrap.io) (para probar recuperación de contraseña)
+Antes de clonar y correr el proyecto, asegúrate de tener instalado lo siguiente en tu máquina.
+
+- [Java 21](https://adoptium.net/) — puedes verificar con `java -version`
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — para levantar la base de datos
+- Una cuenta gratuita en [Mailtrap](https://mailtrap.io) — para probar el envío de correos de recuperación de contraseña
 
 ---
 
@@ -36,12 +38,23 @@ cp .env.example .env
 # Edita .env con tus credenciales de Mailtrap y ajusta el JWT_SECRET
 ```
 
-### 2. Levantar la base de datos
+### 2. Levantar la base de datos con Docker
+
+El proyecto incluye un `docker-compose.yml` en la raíz con toda la configuración necesaria. El primer `docker compose up` ejecuta automáticamente el script `init-db/01_schema.sql` que crea todas las tablas del esquema.
 
 ```bash
 docker compose up -d
 ```
 
+Puedes verificar que las tablas se crearon correctamente con este comando:
+
+```bash
+docker exec -it postgres_domesticas psql -U postgres -d domesticas_db -c "\dt"
+```
+
+Deberías ver las tablas `hogar`, `usuario`, `usuario_hogar`, `tarea` , `password_reset_token`,`invitacion_hogar`y`flyway_schema_history`.
+
+> **Importante:** si ya tenías una versión anterior del volumen de Docker, elimínalo antes de levantar el contenedor para que el script de inicialización se ejecute desde cero. Puedes hacerlo desde la sección **Volumes** de Docker Desktop.
 ### 3. Ejecutar migraciones (Flyway)
 
 ```bash
@@ -50,24 +63,36 @@ docker compose up -d
 
 ### 4. Configurar Mailtrap
 
-Edita `.env` con tus credenciales de Mailtrap (Email Testing → My Sandbox → Integration).
+Edita `.env` con tus credenciales de Mailtrap [mailtrap.io](https://mailtrap.io) (Email Testing → My Sandbox → Integration).
 
 ### 5. Ejecutar la aplicación
 
+Desde la raíz del proyecto ejecuta:
+
 ```bash
-./mvnw spring-boot:run
+.\mvnw spring-boot:run        # Windows (PowerShell)
+./mvnw spring-boot:run        # Mac / Linux
 ```
 
+No necesitas tener Maven instalado globalmente — el `mvnw` es un wrapper que descarga automáticamente la versión correcta de Maven para este proyecto.
+
+Cuando veas este mensaje en la consola, la aplicación está lista:
+
+```
+Started DomesticasApplication in X seconds
+```
 La API estará disponible en `http://localhost:8080`.
 
 ---
 
 ## Documentación interactiva (Swagger UI)
 
+Una vez que la aplicación esté corriendo, abre el navegador y ve a:
+
 ```
 http://localhost:8080/swagger-ui/index.html
 ```
-
+Ahí encontrarás todos los endpoints documentados y podrás probarlos directamente desde el navegador sin necesidad de instalar ninguna herramienta adicional.
 Para generar documentación estática:
 
 ```bash
@@ -111,13 +136,6 @@ Todos los prefijos bajo `/api`.
 | `PATCH` | `/api/tasks/{tareaId}/status` | Cambiar estado de tarea | JWT (Miembro) |
 | `DELETE` | `/api/tasks/{tareaId}` | Eliminar tarea | JWT (Admin) |
 
-### Páginas HTML — `/join` y `/reset-password`
-
-| Método | Endpoint | Descripción | Auth |
-|--------|----------|-------------|------|
-| `GET` | `/join?token=` | Página para aceptar o rechazar invitación a un hogar | No |
-| `GET` | `/reset-password?token=` | Página para establecer nueva contraseña | No |
-
 ### Flujo completo de uso
 
 1. **Registro** → `POST /api/auth/register`
@@ -141,61 +159,26 @@ Todos los prefijos bajo `/api`.
 
 ```
 src/main/java/com/eap08/domesticas/
-├── DomesticasApplication.java
-├── controller/
-│   ├── AuthController.java        ← autenticación
-│   ├── HogarController.java       ← gestión de hogares
-│   ├── PageController.java        ← páginas HTML (/join, /reset-password)
-│   └── TareaController.java       ← gestión de tareas
-├── dto/
-│   ├── AuthResponse.java
-│   ├── ErrorResponse.java
-│   ├── HogarRequest.java          ← records: CreateHogar, InvitarMiembro, ResponderInvitacion
-│   ├── HogarResponse.java         ← records: HogarData, InvitacionResponse, MiembroResponse
-│   ├── TareaRequest.java          ← records: CreateTarea, UpdateTarea, UpdateStatus
-│   ├── TareaResponse.java         ← records: TareaData, TareaListData, AsignadoInfo
-│   └── ...
-├── model/
-│   ├── Hogar.java
-│   ├── InvitacionHogar.java
-│   ├── PasswordResetToken.java
-│   ├── Tarea.java
-│   ├── Usuario.java
-│   ├── UsuarioHogar.java
-│   └── UsuarioHogarId.java        ← clave compuesta embeddable
-├── repository/
-│   ├── HogarRepository.java
-│   ├── InvitacionHogarRepository.java
-│   ├── PasswordResetTokenRepository.java
-│   ├── TareaRepository.java
-│   ├── UsuarioHogarRepository.java
-│   └── UsuarioRepository.java
-├── security/
-│   ├── GlobalExceptionHandler.java
-│   ├── JwtAuthFilter.java         ← filtro JWT (nuevo)
-│   ├── JwtUtil.java
-│   └── SecurityConfig.java        ← config con JWT filter
+├── DomesticasApplication.java    ← punto de entrada de Spring Boot
+├── controller/                   ← recibe peticiones HTTP y delega al servicio
+├── dto/                          ← objetos de transferencia de datos (entrada/salida de la API)
+├── model/                        ← entidades JPA que mapean las tablas de la BD
+├── repository/                   ← interfaces de acceso a datos (Spring Data JPA)
+├── security/                     ← configuración de Spring Security, JWT y manejo de errores
 └── service/
-    ├── AuthService.java
-    ├── HogarService.java
-    ├── TareaService.java
-    └── impl/
-        ├── AuthServiceImpl.java
-        ├── EmailService.java
-        └── UserDetailsServiceImpl.java
+    ├── (interfaces)              ← contratos de la lógica de negocio
+    └── impl/                     ← implementaciones concretas de los servicios
 
 src/main/resources/
-├── META-INF/
-│   └── additional-spring-configuration-metadata.json  ← autocompletado IDE
-├── application.properties         ← variables de entorno con defaults
+├── application.properties         
 └── db/migration/
-    ├── V1__init_schema.sql        ← esquema base
+    ├── V1__init_schema.sql        ← esquema db
     └── V2__invitacion_hogar.sql   ← tabla de invitaciones
 
 scripts/
 ├── deploy-db.sh                   ← despliegue de migraciones
 ├── generate-api-docs.sh           ← generación de OpenAPI + Postman
-└── test-api.sh                    ← 22 pruebas automatizadas de endpoints
+└── test-api.sh                    ← prueba peticiones rest, genera valores por defecto para probar
 
 docs/
 ├── openapi.json                   ← especificación OpenAPI 3.0
@@ -207,7 +190,7 @@ docs/
 
 ## Manejo de errores
 
-Todos los errores siguen una estructura uniforme:
+Todos los errores de la API siguen una estructura uniforme:
 
 ```json
 {
@@ -237,19 +220,19 @@ El token se obtiene mediante `POST /api/auth/login`. El filtro `JwtAuthFilter` v
 
 ## Variables de entorno
 
-| Variable | Descripción | Default (dev) |
-|----------|-------------|---------------|
-| `SPRING_DATASOURCE_URL` | URL JDBC de PostgreSQL | `jdbc:postgresql://localhost:5432/domesticas_db` |
-| `SPRING_DATASOURCE_USERNAME` | Usuario BD | `postgres` |
-| `SPRING_DATASOURCE_PASSWORD` | Contraseña BD | `postgres` |
-| `APP_JWT_SECRET` | Secreto para firmar JWT | *(cambiar en producción)* |
-| `APP_JWT_EXPIRATION` | Expiración del token (ms) | `86400000` (24h) |
-| `SPRING_MAIL_HOST` | Servidor SMTP | `sandbox.smtp.mailtrap.io` |
-| `SPRING_MAIL_PORT` | Puerto SMTP | `2525` |
-| `SPRING_MAIL_USERNAME` | Usuario SMTP | *(configurar)* |
-| `SPRING_MAIL_PASSWORD` | Contraseña SMTP | *(configurar)* |
-| `APP_FRONTEND_URL` | URL del frontend | `http://localhost:3000` |
-| `APP_CORS_ORIGINS` | Orígenes CORS (coma) | `https://project-tdwx8.vercel.app,http://localhost:3000` |
+| Variable | Descripción |
+|----------|-------------|
+| `SPRING_DATASOURCE_URL` | URL JDBC de PostgreSQL |
+| `SPRING_DATASOURCE_USERNAME` | Usuario BD |
+| `SPRING_DATASOURCE_PASSWORD` | Contraseña BD |
+| `APP_JWT_SECRET` | Secreto para firmar JWT |
+| `APP_JWT_EXPIRATION` | Expiración del token (ms) |
+| `SPRING_MAIL_HOST` | Servidor SMTP |
+| `SPRING_MAIL_PORT` | Puerto SMTP |
+| `SPRING_MAIL_USERNAME` | Usuario SMTP |
+| `SPRING_MAIL_PASSWORD` | Contraseña SMTP |
+| `APP_FRONTEND_URL` | URL del frontend |
+| `APP_CORS_ORIGINS` | Orígenes CORS (coma) |
 
 ---
 
@@ -261,4 +244,14 @@ Ver `docs/vulnerability-report.md` para el informe completo con 8 hallazgos docu
 
 ## Flujo de trabajo con Git
 
-El equipo trabaja con **feature branches**. No hacer push directo a `main` — requiere Pull Request y revisión.
+El equipo trabaja con **feature branches**. Cada Historia de Usuario tiene su propia rama con el prefijo `feature/`. Cuando el trabajo esté listo, se abre un Pull Request hacia `main` para revisión antes de hacer merge.
+
+```bash
+# Crear una rama para una HU nueva
+git checkout -b feature/nombre-de-la-hu
+
+# Subir cambios durante el desarrollo
+git add .
+git commit -m "feat: descripción breve del cambio"
+git push origin feature/nombre-de-la-hu
+```

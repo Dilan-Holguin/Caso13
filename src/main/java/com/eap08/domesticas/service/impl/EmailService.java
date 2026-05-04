@@ -21,15 +21,15 @@ public class EmailService {
         SimpleMailMessage mensaje = new SimpleMailMessage();
         mensaje.setFrom("no-reply@domesticas.com");
         mensaje.setTo(destinatario);
-        mensaje.setSubject("Recuperacion de contrasena — Domesticas");
+        mensaje.setSubject("Recuperación de contraseña — Domésticas");
         mensaje.setText(
             "Hola,\n\n" +
-            "Recibimos una solicitud para restablecer tu contrasena.\n\n" +
-            "Usa el siguiente enlace para crear una nueva contrasena. " +
+            "Recibimos una solicitud para restablecer tu contraseña.\n\n" +
+            "Usa el siguiente enlace para crear una nueva contraseña. " +
             "Este enlace expira en 30 minutos:\n\n" +
             frontendUrl + "/reset-password?token=" + token + "\n\n" +
             "Si no solicitaste este cambio, puedes ignorar este correo.\n\n" +
-            "El equipo de Domesticas"
+            "El equipo de Domésticas"
         );
         mailSender.send(mensaje);
     }
@@ -38,7 +38,7 @@ public class EmailService {
         SimpleMailMessage mensaje = new SimpleMailMessage();
         mensaje.setFrom("no-reply@domesticas.com");
         mensaje.setTo(destinatario);
-        mensaje.setSubject(nombreAdmin + " te ha invitado a " + nombreHogar + " — Domesticas");
+        mensaje.setSubject(nombreAdmin + " te ha invitado a " + nombreHogar + " — Domésticas");
         mensaje.setText(
             "Hola,\n\n" +
             nombreAdmin + " te ha invitado a unirte al hogar \"" + nombreHogar + "\".\n\n" +
@@ -46,7 +46,7 @@ public class EmailService {
             "Este enlace expira en 48 horas:\n\n" +
             frontendUrl + "/join?token=" + token + "\n\n" +
             "Si no esperabas esta invitacion, puedes ignorar este correo.\n\n" +
-            "El equipo de Domesticas"
+            "El equipo de Domésticas"
         );
         mailSender.send(mensaje);
     }
