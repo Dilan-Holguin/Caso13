@@ -42,14 +42,15 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                               session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/reset-password", "/join").permitAll()
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .anyRequest().authenticated()
-            )
+                                   .requestMatchers("/api/auth/**", "/api/tareas/**", "/api/hogares/**", "/api/servicios/**").permitAll()
+                                   .requestMatchers("/reset-password", "/join").permitAll()
+                                   .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                                   .anyRequest().authenticated()
+                                  )
             .addFilterBefore(jwtAuthFilter(),
-                    org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
+                             org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
