@@ -41,4 +41,4 @@ EXPOSE 8080
 
 # Comando de arranque
 # -Djava.security.egd acelera el inicio en Linux evitando bloqueos de entropía
-ENTRYPOINT ["java", "-Xmx256m", "-Dserver.port=8080", "-Dserver.address=0.0.0.0", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "java -Xmx300m -Dserver.port=${PORT:-8080} -jar app.jar"]
