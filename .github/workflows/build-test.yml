@@ -54,8 +54,8 @@ jobs:
           SPRING_DATASOURCE_PASSWORD: postgres
 
       - name: Subir artefacto de pruebas
-        if: always()
-        uses: actions/upload-artifact@v3
+        if: always() 
+        uses: actions/upload-artifact@v4
         with:
           name: reports
           path: target/site/jacoco/
