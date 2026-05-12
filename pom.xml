@@ -29,8 +29,8 @@
 	<properties>
 		<java.version>21</java.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<sonar.projectKey>tu-usuario_tu-repositorio</sonar.projectKey>
-		<sonar.organization>tu-organizacion</sonar.organization>
+		<sonar.projectKey>RUTENCO_domesticas</sonar.projectKey>
+		<sonar.organization>fabrica-2026-1-calidad</sonar.organization>
 		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
 		<sonar.coverage.jacoco.xmlReportPaths>${project.basedir}/target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
 	</properties>
