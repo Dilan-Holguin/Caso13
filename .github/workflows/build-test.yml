@@ -2,11 +2,7 @@ name: Build e Tests
 
 on:
   push:
-    branches:
-      - test/qa-setup-sonar
   pull_request:
-    branches:
-      - test/qa-setup-sonar
 
 jobs:
   build:

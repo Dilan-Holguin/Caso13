@@ -23,12 +23,12 @@
 ### 3️⃣ Aquí (en tu máquina local)
 ```bash
 # Actualizar sonar-project.properties
-sonar.projectKey=TU_USUARIO_domesticas
-sonar.organization=TU_ORGANIZACION
+# No dejes projectKey u organization fijos en el archivo.
+# Se inyectan desde GitHub Actions con variables del repositorio.
 
-# Actualizar pom.xml
-<sonar.organization>TU_ORGANIZACION</sonar.organization>
-<sonar.projectKey>TU_USUARIO_domesticas</sonar.projectKey>
+# El workflow usa la organización fija del fork:
+# -Dsonar.organization=fabrica-2026-1-calidad
+# -Dsonar.projectKey=fabrica-2026-1-calidad_Caso13
 
 # Commit y Push
 git add .
@@ -94,7 +94,7 @@ mvn jacoco:report
 - R: Verifica que el secret esté en **repo → Settings → Secrets → Actions**
 
 **P: Quality Gate falla sin motivo**
-- R: El projectKey debe coincidir exactamente en SonarCloud + pom.xml + sonar-project.properties
+- R: El workflow de SonarCloud solo corre en la organización `fabrica-2026-1-calidad`. En el repo original se omite para no romper el pipeline.
 
 **P: No se ve cobertura (0%)**
 - R: Ejecuta `mvn clean verify` localmente primero. El `jacoco.xml` debe existir en `target/site/jacoco/`

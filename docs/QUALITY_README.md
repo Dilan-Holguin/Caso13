@@ -81,13 +81,10 @@ SONARCLOUD_ADVANCED.md       # Configuración avanzada
 
 ### 5. Actualizar Configuración Local
 ```bash
-# Editar sonar-project.properties
-sonar.projectKey=tu-usuario_domesticas
-sonar.organization=tu-organizacion
-
-# Editar pom.xml
-<sonar.projectKey>tu-usuario_domesticas</sonar.projectKey>
-<sonar.organization>tu-organizacion</sonar.organization>
+# No fijes projectKey ni organization en el código.
+# El workflow de SonarCloud solo se ejecuta en la organización:
+# fabrica-2026-1-calidad
+# En el repo original se omite para no romper el pipeline.
 ```
 
 ### 6. Commit y Push

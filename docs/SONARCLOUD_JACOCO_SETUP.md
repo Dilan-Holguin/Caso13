@@ -23,7 +23,7 @@
 1. Click en **"Analyze new project"**
 2. Selecciona tu repositorio (domesticas)
 3. Elige **"Maven"** como tipo de proyecto
-4. Copia tu `ORGANIZATION_KEY` (ej: `tu-organizacion`)
+4. Copia tu `ORGANIZATION_KEY` o usa el valor dinámico que inyecta el workflow
 
 ---
 
@@ -64,16 +64,14 @@
 
 ### 4.1 Actualizar sonar-project.properties
 ```properties
-# Reemplaza con tus valores
-sonar.projectKey=tu-usuario_domesticas
-sonar.organization=tu-organizacion
+# No fijes projectKey ni organization aquí.
+# El workflow los inyecta con secrets del repositorio.
 ```
 
 ### 4.2 Actualizar pom.xml
 ```xml
 <properties>
-    <sonar.projectKey>tu-usuario_domesticas</sonar.projectKey>
-    <sonar.organization>tu-organizacion</sonar.organization>
+   <!-- SonarCloud se configura dinámicamente desde GitHub Actions -->
 </properties>
 ```
 

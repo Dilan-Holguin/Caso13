@@ -2,15 +2,12 @@ name: SonarCloud Analysis with JaCoCo
 
 on:
   push:
-    branches:
-      - test/qa-setup-sonar
   pull_request:
-    branches:
-      - test/qa-setup-sonar
 
 jobs:
   sonar-analysis:
     name: Análisis de Calidad con SonarCloud
+    if: github.repository_owner == 'fabrica-2026-1-calidad'
     runs-on: ubuntu-latest
     
     services:
@@ -63,13 +60,11 @@ jobs:
           SPRING_DATASOURCE_PASSWORD: postgres
 
       - name: Ejecutar análisis SonarCloud
-        run: mvn sonar:sonar
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      - name: Verificar Quality Gate
-        run: mvn sonar:sonar -Dsonar.qualitygate.wait=true
+        run: >
+          mvn sonar:sonar
+          -Dsonar.organization=fabrica-2026-1-calidad
+          -Dsonar.projectKey=fabrica-2026-1-calidad_Caso13
+          -Dsonar.qualitygate.wait=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
