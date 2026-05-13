@@ -7,7 +7,6 @@ on:
 jobs:
   sonar-analysis:
     name: Análisis de Calidad con SonarCloud
-    if: github.repository_owner == 'fabrica-2026-1-calidad'
     runs-on: ubuntu-latest
     
     services:
