@@ -81,10 +81,9 @@ SONARCLOUD_ADVANCED.md       # Configuración avanzada
 
 ### 5. Actualizar Configuración Local
 ```bash
-# No fijes projectKey ni organization en el código.
-# El workflow de SonarCloud solo se ejecuta en la organización:
+# El workflow de SonarCloud fija organization y projectKey al ejecutar el análisis.
+# El análisis corre en GitHub Actions para la organización:
 # fabrica-2026-1-calidad
-# En el repo original se omite para no romper el pipeline.
 ```
 
 ### 6. Commit y Push
