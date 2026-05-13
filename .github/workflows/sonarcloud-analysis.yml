@@ -1,13 +1,17 @@
 name: SonarCloud Analysis with JaCoCo
 
 on:
-  push:
-  pull_request:
+  # Ejecutar manualmente o cuando termine el workflow de Build e Tests
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Build e Tests"]
+    types: [completed]
 
 jobs:
   sonar-analysis:
     name: Análisis de Calidad con SonarCloud
+    # Ejecutar solo si no es trigger de workflow_run o si el workflow previo terminó con éxito
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -61,36 +65,48 @@ jobs:
         env:
           SPRING_PROFILES_ACTIVE: test
 
-      - name: Análisis SonarCloud
+      - name: Análisis SonarCloud (Pull Request)
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          PR_KEY: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_BASE: ${{ github.base_ref }}
+        run: |
+          mvn -B sonar:sonar \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.token="$SONAR_TOKEN" \
+            -Dsonar.organization=fabrica-2026-1-calidad \
+            -Dsonar.projectKey=fabrica-2026-1-calidad_Caso13 \
+            -Dsonar.qualitygate.wait=false \
+            -Dsonar.exclusions=src/test/** \
+            -Dsonar.pullrequest.key="$PR_KEY" \
+            -Dsonar.pullrequest.branch="$PR_BRANCH" \
+            -Dsonar.pullrequest.base="$PR_BASE"
+
+      - name: Análisis SonarCloud (Branch / workflow_run)
+        if: ${{ github.event_name != 'pull_request' }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            mvn -B sonar:sonar \
-              -Dsonar.host.url=https://sonarcloud.io \
-              -Dsonar.token="$SONAR_TOKEN" \
-              -Dsonar.organization=fabrica-2026-1-calidad \
-              -Dsonar.projectKey=fabrica-2026-1-calidad_Caso13 \
-              -Dsonar.qualitygate.wait=false \
-              -Dsonar.exclusions=src/test/** \
-              -Dsonar.pullrequest.key=${{ github.event.pull_request.number }} \
-              -Dsonar.pullrequest.branch=${{ github.head_ref }} \
-              -Dsonar.pullrequest.base=${{ github.base_ref }}
-          else
-            mvn -B sonar:sonar \
-              -Dsonar.host.url=https://sonarcloud.io \
-              -Dsonar.token="$SONAR_TOKEN" \
-              -Dsonar.organization=fabrica-2026-1-calidad \
-              -Dsonar.projectKey=fabrica-2026-1-calidad_Caso13 \
-              -Dsonar.qualitygate.wait=false \
-              -Dsonar.exclusions=src/test/** \
-              -Dsonar.branch.name=${{ github.ref_name }}
-          fi
+          BRANCH_NAME="${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}"
+          echo "Usando branch: $BRANCH_NAME"
+          mvn -B sonar:sonar \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.token="$SONAR_TOKEN" \
+            -Dsonar.organization=fabrica-2026-1-calidad \
+            -Dsonar.projectKey=fabrica-2026-1-calidad_Caso13 \
+            -Dsonar.qualitygate.wait=false \
+            -Dsonar.exclusions=src/test/** \
+            -Dsonar.branch.name="$BRANCH_NAME"
 
       - name: Verificar Quality Gate (ignorar solo coverage)
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
+          echo "Instalando jq (si no está disponible)..."
+          sudo apt-get update && sudo apt-get install -y jq curl || true
+          echo "jq instalado"
           set -euo pipefail
           projectKey="fabrica-2026-1-calidad_Caso13"
           apiUrl="https://sonarcloud.io/api/qualitygates/project_status?projectKey=${projectKey}"
