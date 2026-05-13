@@ -1,0 +1,97 @@
+package com.eap08.domesticas.service;
+
+import com.eap08.domesticas.dto.TareaRequest.UpdateTareaRequest;
+import com.eap08.domesticas.dto.TareaResponse.TareaData;
+import com.eap08.domesticas.model.Hogar;
+import com.eap08.domesticas.model.Tarea;
+import com.eap08.domesticas.model.Usuario;
+import com.eap08.domesticas.repository.HogarRepository;
+import com.eap08.domesticas.repository.TareaRepository;
+import com.eap08.domesticas.repository.UsuarioHogarRepository;
+import com.eap08.domesticas.repository.UsuarioRepository;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class TareaServiceTest {
+
+    @Mock
+    private TareaRepository tareaRepo;
+
+    @Mock
+    private HogarRepository hogarRepo;
+
+    @Mock
+    private UsuarioHogarRepository usuarioHogarRepo;
+
+    @Mock
+    private UsuarioRepository usuarioRepo;
+
+    @InjectMocks
+    private TareaService tareaService;
+
+    @Test
+    void shouldAssignTaskToValidHouseholdMember() {
+        // Arrange
+        Long tareaId = 10L;
+        Long hogarId = 20L;
+        Long editorId = 1L;
+        Long miembroId = 2L;
+
+        Hogar hogar = Hogar.builder().hogarId(hogarId).nombre("Hogar QA").build();
+
+        Usuario editor = new Usuario();
+        editor.setUsuarioId(editorId);
+        editor.setEmail("editor@example.com");
+
+        Usuario miembro = new Usuario();
+        miembro.setUsuarioId(miembroId);
+        miembro.setNombre("Miembro QA");
+        miembro.setEmail("member@example.com");
+
+        Tarea tarea = Tarea.builder()
+                .tareaId(tareaId)
+                .hogar(hogar)
+                .titulo("Barrer sala")
+                .categoria(Tarea.CAT_LIMPIEZA)
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .build();
+
+        UpdateTareaRequest request = new UpdateTareaRequest(
+                null,
+                null,
+                null,
+                null,
+                miembroId);
+
+        when(tareaRepo.findById(tareaId)).thenReturn(Optional.of(tarea));
+        when(usuarioRepo.findByEmail("editor@example.com")).thenReturn(Optional.of(editor));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(editorId, hogarId)).thenReturn(true);
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(miembroId, hogarId)).thenReturn(true);
+        when(usuarioRepo.findById(miembroId)).thenReturn(Optional.of(miembro));
+        when(tareaRepo.save(any(Tarea.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        TareaData response = tareaService.actualizarTarea(tareaId, request, "editor@example.com");
+
+        // Assert
+        assertThat(tarea.getAsignadoA()).isNotNull();
+        assertThat(tarea.getAsignadoA().getUsuarioId()).isEqualTo(miembroId);
+        assertThat(response.asignadoA()).isNotNull();
+        assertThat(response.asignadoA().usuarioId()).isEqualTo(miembroId);
+        assertThat(response.asignadoA().nombre()).isEqualTo("Miembro QA");
+        assertThat(response.asignadoA().email()).isEqualTo("member@example.com");
+
+        verify(tareaRepo).save(tarea);
+    }
+}

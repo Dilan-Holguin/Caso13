@@ -2,7 +2,10 @@ package com.eap08.domesticas.acceptance.steps;
 
 import com.eap08.domesticas.model.PasswordResetToken;
 import com.eap08.domesticas.model.Usuario;
+import com.eap08.domesticas.repository.HogarRepository;
 import com.eap08.domesticas.repository.PasswordResetTokenRepository;
+import com.eap08.domesticas.repository.TareaRepository;
+import com.eap08.domesticas.repository.UsuarioHogarRepository;
 import com.eap08.domesticas.repository.UsuarioRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,17 +46,32 @@ public class AuthSteps {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private TareaRepository tareaRepository;
+
+    @Autowired
+    private UsuarioHogarRepository usuarioHogarRepository;
+
+    @Autowired
+    private HogarRepository hogarRepository;
+
     private ResponseEntity<String> lastResponse;
 
     @Before
     public void clearDatabase() {
         tokenRepository.deleteAll();
+        tareaRepository.deleteAll();
+        usuarioHogarRepository.deleteAll();
+        hogarRepository.deleteAll();
         usuarioRepository.deleteAll();
     }
 
     @Given("the database is empty")
     public void theDatabaseIsEmpty() {
         tokenRepository.deleteAll();
+        tareaRepository.deleteAll();
+        usuarioHogarRepository.deleteAll();
+        hogarRepository.deleteAll();
         usuarioRepository.deleteAll();
     }
 
@@ -107,8 +125,7 @@ public class AuthSteps {
         Map<String, Object> body = Map.of(
                 "nombre", name,
                 "email", email,
-                "password", password
-        );
+                "password", password);
         post("/api/auth/register", body);
     }
 
@@ -116,8 +133,7 @@ public class AuthSteps {
     public void theClientLogsIn(String email, String password) throws Exception {
         Map<String, Object> body = Map.of(
                 "email", email,
-                "password", password
-        );
+                "password", password);
         post("/api/auth/login", body);
     }
 
@@ -136,8 +152,7 @@ public class AuthSteps {
     public void theClientResetsPassword(String token, String newPassword) throws Exception {
         Map<String, Object> body = Map.of(
                 "token", token,
-                "nuevaPassword", newPassword
-        );
+                "nuevaPassword", newPassword);
         post("/api/auth/reset-password", body);
     }
 
@@ -193,7 +208,8 @@ public class AuthSteps {
         if (lastResponse.getBody() == null || lastResponse.getBody().isBlank()) {
             return Map.of();
         }
-        return objectMapper.readValue(lastResponse.getBody(), new TypeReference<Map<String, Object>>() {});
+        return objectMapper.readValue(lastResponse.getBody(), new TypeReference<Map<String, Object>>() {
+        });
     }
 
     private String url(String path) {
