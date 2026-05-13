@@ -10,6 +10,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.util.HtmlUtils;
 
 @Tag(name = "Páginas", description = "Endpoints para páginas web de recuperación de contrasena e invitación a hogar")
 @Controller
@@ -24,6 +25,7 @@ public class PageController {
     @GetMapping("/reset-password")
     @ResponseBody
     public String resetPasswordPage(@RequestParam String token) {
+        String escapedToken = HtmlUtils.htmlEscape(token);
         return """
             <!DOCTYPE html>
             <html lang="es">
@@ -54,12 +56,14 @@ public class PageController {
                 <div class="card">
                     <h2>Recuperar contrasena</h2>
                     <p>Ingresa tu nueva contrasena (minimo 8 caracteres).</p>
+                    <input type="hidden" id="token" value="__TOKEN__">
                     <input type="password" id="password" placeholder="Nueva contrasena" minlength="8">
                     <button id="btn" onclick="cambiar()">Cambiar contrasena</button>
                     <p id="msg"></p>
                 </div>
                 <script>
                 async function cambiar() {
+                    var token = document.getElementById('token').value;
                     var pass = document.getElementById('password').value;
                     if (pass.length < 6) {
                         document.getElementById('msg').className = 'error';
@@ -73,7 +77,7 @@ public class PageController {
                         var resp = await fetch('/api/auth/reset-password', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ token: 'TOKEN_PLACEHOLDER', nuevaPassword: pass })
+                            body: JSON.stringify({ token: token, nuevaPassword: pass })
                         });
                         var data = await resp.json();
                         var msg = document.getElementById('msg');
@@ -90,7 +94,7 @@ public class PageController {
                 </script>
             </body>
             </html>
-            """.replace("TOKEN_PLACEHOLDER", token);
+            """.replace("__TOKEN__", escapedToken);
     }
       @Operation(summary = "Página de invitación", description = "Renderiza la página HTML donde el usuario puede aceptar o rechazar una invitación a un hogar")
     @ApiResponses({
@@ -102,7 +106,7 @@ public class PageController {
     public String joinPage(
                 @Parameter(description = "Token de invitación enviado al email del invitado", required = true)
                 @RequestParam String token) {
-                    
+        String escapedToken = HtmlUtils.htmlEscape(token);
         return """
             <!DOCTYPE html>
             <html lang="es">
@@ -136,6 +140,7 @@ public class PageController {
                 <div class="card">
                     <h2>Invitacion a un hogar</h2>
                     <p>Has sido invitado a unirte a un hogar en Domesticas.<br>Que deseas hacer?</p>
+                    <input type="hidden" id="token" value="__TOKEN__">
                     <div class="buttons">
                         <button class="aceptar" id="btnAceptar" onclick="responder('ACEPTAR')">Aceptar</button>
                         <button class="rechazar" id="btnRechazar" onclick="responder('RECHAZAR')">Rechazar</button>
@@ -144,10 +149,11 @@ public class PageController {
                 </div>
                 <script>
                 async function responder(accion) {
+                    var token = document.getElementById('token').value;
                     document.getElementById('btnAceptar').disabled = true;
                     document.getElementById('btnRechazar').disabled = true;
                     try {
-                        var resp = await fetch('/api/households/invitations/TOKEN_PLACEHOLDER/respond', {
+                        var resp = await fetch('/api/households/invitations/' + encodeURIComponent(token) + '/respond', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ accion: accion })
@@ -166,6 +172,6 @@ public class PageController {
                 </script>
             </body>
             </html>
-            """.replace("TOKEN_PLACEHOLDER", token);
+            """.replace("__TOKEN__", escapedToken);
     }
 }
