@@ -56,19 +56,7 @@ jobs:
         env:
           SPRING_PROFILES_ACTIVE: test
 
-      - name: Run SonarCloud Analysis (No Skip)
-        run: >
-          mvn sonar:sonar
-          -Dspring.profiles.active=test
-          -Dsonar.organization=fabrica-2026-1-calidad
-          -Dsonar.projectKey=fabrica-2026-1-calidad_Caso13
-          -Dsonar.qualitygate.wait=true
-        env:
-          SPRING_PROFILES_ACTIVE: test
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      - name: Upload reporte de cobertura a SonarCloud
+      - name: Upload reporte JaCoCo a SonarCloud (Automatic Analysis)
         if: success()
         uses: codecov/codecov-action@v3
         with:
