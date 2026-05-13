@@ -21,8 +21,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -98,8 +100,8 @@ class TareaServiceTest {
         verify(tareaRepo).save(tarea);
     }
 
-        @Test
-        void shouldCreateTaskWithoutAssignee() {
+    @Test
+    void shouldCreateTaskWithoutAssignee() {
         // Arrange
         Long hogarId = 20L;
         Long adminId = 1L;
@@ -113,29 +115,29 @@ class TareaServiceTest {
         admin.setEmail(adminEmail);
 
         UsuarioHogar usuarioHogar = UsuarioHogar.builder()
-            .id(new UsuarioHogarId(adminId, hogarId))
-            .usuario(admin)
-            .hogar(hogar)
-            .rol(UsuarioHogar.ROL_ADMINISTRADOR)
-            .build();
+                .id(new UsuarioHogarId(adminId, hogarId))
+                .usuario(admin)
+                .hogar(hogar)
+                .rol(UsuarioHogar.ROL_ADMINISTRADOR)
+                .build();
 
         CreateTareaRequest request = new CreateTareaRequest(
-            "Barrer sala",
-            "Tarea sin responsable",
-            Tarea.CAT_LIMPIEZA,
-            null,
-            null  // No assignee specified
+                "Barrer sala",
+                "Tarea sin responsable",
+                Tarea.CAT_LIMPIEZA,
+                null,
+                null // No assignee specified
         );
 
         Tarea createdTarea = Tarea.builder()
-            .tareaId(1L)
-            .hogar(hogar)
-            .titulo("Barrer sala")
-            .descripcion("Tarea sin responsable")
-            .categoria(Tarea.CAT_LIMPIEZA)
-            .estado(Tarea.ESTADO_PENDIENTE)
-            .asignadoA(null)  // Explicitly null
-            .build();
+                .tareaId(1L)
+                .hogar(hogar)
+                .titulo("Barrer sala")
+                .descripcion("Tarea sin responsable")
+                .categoria(Tarea.CAT_LIMPIEZA)
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .asignadoA(null) // Explicitly null
+                .build();
 
         when(usuarioRepo.findByEmail(adminEmail)).thenReturn(Optional.of(admin));
         when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(adminId, hogarId)).thenReturn(true);
@@ -153,5 +155,52 @@ class TareaServiceTest {
         assertThat(response.estado()).isEqualTo(Tarea.ESTADO_PENDIENTE);
 
         verify(tareaRepo).save(any(Tarea.class));
-        }
+    }
+
+    @Test
+    void shouldRejectAssignmentWhenUserNotInHousehold() {
+        // Arrange
+        Long tareaId = 11L;
+        Long hogarId = 30L;
+        Long editorId = 2L;
+        Long externoId = 99L;
+
+        Hogar hogar = Hogar.builder().hogarId(hogarId).nombre("Hogar QA").build();
+
+        Usuario editor = new Usuario();
+        editor.setUsuarioId(editorId);
+        editor.setEmail("editor2@example.com");
+
+        Usuario externo = new Usuario();
+        externo.setUsuarioId(externoId);
+        externo.setNombre("Usuario Externo");
+        externo.setEmail("external@example.com");
+
+        Tarea tarea = Tarea.builder()
+                .tareaId(tareaId)
+                .hogar(hogar)
+                .titulo("Lavar platos")
+                .categoria(Tarea.CAT_LIMPIEZA)
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .build();
+
+        UpdateTareaRequest request = new UpdateTareaRequest(
+                null,
+                null,
+                null,
+                null,
+                externoId);
+
+        when(tareaRepo.findById(tareaId)).thenReturn(Optional.of(tarea));
+        when(usuarioRepo.findByEmail("editor2@example.com")).thenReturn(Optional.of(editor));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(editorId, hogarId)).thenReturn(true);
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(externoId, hogarId)).thenReturn(false);
+
+        // Act & Assert: expect business exception about external user
+        assertThatThrownBy(() -> tareaService.actualizarTarea(tareaId, request, "editor2@example.com"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("El usuario asignado no pertenece a este hogar");
+
+        verify(tareaRepo, never()).save(any(Tarea.class));
+    }
 }

@@ -100,8 +100,7 @@ public class TareaCreationSteps {
         Map<String, Object> requestBody = Map.of(
                 "titulo", "Barrer sala",
                 "descripcion", "Tarea sin responsable",
-                "categoria", "Limpieza"
-        );
+                "categoria", "Limpieza");
         String json = objectMapper.writeValueAsString(requestBody);
         HttpEntity<String> request = new HttpEntity<>(json, headers);
 
@@ -124,19 +123,19 @@ public class TareaCreationSteps {
         }
     }
 
-        @Then("the task creation response status should be {int}")
-        public void taskCreationResponseStatusShouldBe(int expectedStatus) {
+    @Then("the task creation response status should be {int}")
+    public void taskCreationResponseStatusShouldBe(int expectedStatus) {
         assertThat(lastResponse.getStatusCode().value()).isEqualTo(expectedStatus);
     }
 
-        @Then("the task creation response should include null assignee info")
-        public void taskCreationResponseShouldIncludeNullAssigneeInfo() throws Exception {
+    @Then("the task creation response should include null assignee info")
+    public void taskCreationResponseShouldIncludeNullAssigneeInfo() throws Exception {
         Map<String, Object> body = responseAsMap();
         assertThat(body).containsEntry("asignadoA", null);
     }
 
-        @Then("the task should be persisted without an assignee in the database")
-        public void taskShouldBePersistedWithoutAssigneeInDatabase() {
+    @Then("the task should be persisted without an assignee in the database")
+    public void taskShouldBePersistedWithoutAssigneeInDatabase() {
         assertThat(tareaId).isNotNull();
         Tarea persisted = tareaRepository.findById(tareaId).orElseThrow();
         assertThat(persisted.getAsignadoA()).isNull();

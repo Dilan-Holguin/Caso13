@@ -61,6 +61,8 @@ public class TareaAssignmentSteps {
     private String memberName;
     private String memberEmail;
     private Long tareaId;
+    private Long externalId;
+    private String externalEmail;
 
     @Given("a household has an editor user {string} and member user {string} with an existing task")
     public void setupHouseholdWithTask(String editorEmail, String memberEmail) {
@@ -114,6 +116,50 @@ public class TareaAssignmentSteps {
         this.tareaId = tarea.getTareaId();
     }
 
+        @Given("a household has an editor user {string} and external user {string} with an existing task")
+        public void setupHouseholdWithEditorAndExternalUser(String editorEmail, String externalEmail) {
+        this.editorEmail = editorEmail;
+        this.externalEmail = externalEmail;
+        this.editorPassword = "Password123";
+
+        Usuario editor = new Usuario();
+        editor.setNombre("Editor QA");
+        editor.setEmail(editorEmail);
+        editor.setPasswordHash(passwordEncoder.encode(editorPassword));
+        editor = usuarioRepository.saveAndFlush(editor);
+
+        Usuario external = new Usuario();
+        external.setNombre("Usuario Externo");
+        external.setEmail(externalEmail);
+        external.setPasswordHash(passwordEncoder.encode("Password123"));
+        external = usuarioRepository.saveAndFlush(external);
+
+        this.externalId = external.getUsuarioId();
+
+        Hogar hogar = Hogar.builder()
+            .nombre("Hogar QA")
+            .descripcion("Hogar para prueba de asignacion")
+            .build();
+        hogar = hogarRepository.saveAndFlush(hogar);
+
+        usuarioHogarRepository.saveAndFlush(UsuarioHogar.builder()
+            .id(new UsuarioHogarId(editor.getUsuarioId(), hogar.getHogarId()))
+            .usuario(editor)
+            .hogar(hogar)
+            .rol(UsuarioHogar.ROL_ADMINISTRADOR)
+            .build());
+
+        Tarea tarea = Tarea.builder()
+            .hogar(hogar)
+            .titulo("Barrer sala")
+            .descripcion("Caso negativo - asignar a externo")
+            .categoria(Tarea.CAT_LIMPIEZA)
+            .estado(Tarea.ESTADO_PENDIENTE)
+            .build();
+        tarea = tareaRepository.saveAndFlush(tarea);
+        this.tareaId = tarea.getTareaId();
+        }
+
     @When("the editor assigns the task to the household member")
     public void assignTaskToMember() throws Exception {
         String token = loginAndGetToken(editorEmail, editorPassword);
@@ -123,6 +169,26 @@ public class TareaAssignmentSteps {
         headers.setBearerAuth(token);
 
         String json = objectMapper.writeValueAsString(Map.of("asignadoAId", memberId));
+        HttpEntity<String> request = new HttpEntity<>(json, headers);
+
+        lastResponse = restTemplate.exchange(
+                url("/api/tasks/" + tareaId),
+                HttpMethod.PUT,
+                request,
+                String.class);
+    }
+
+    @When("the editor assigns the task to external user {string}")
+    public void assignTaskToExternalUser(String externalEmail) throws Exception {
+        String token = loginAndGetToken(editorEmail, editorPassword);
+
+        Usuario external = usuarioRepository.findByEmail(externalEmail).orElseThrow();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token);
+
+        String json = objectMapper.writeValueAsString(Map.of("asignadoAId", external.getUsuarioId()));
         HttpEntity<String> request = new HttpEntity<>(json, headers);
 
         lastResponse = restTemplate.exchange(
@@ -148,6 +214,20 @@ public class TareaAssignmentSteps {
         assertThat(((Number) asignado.get("usuarioId")).longValue()).isEqualTo(memberId);
         assertThat(asignado.get("nombre")).isEqualTo(memberName);
         assertThat(asignado.get("email")).isEqualTo(expectedEmail);
+    }
+
+    @Then("the assignment response body should contain error message {string}")
+    public void responseShouldContainErrorMessage(String expectedMessage) throws Exception {
+        Map<String, Object> body = responseAsMap();
+        Object message = body.get("message");
+        assertThat(message).isInstanceOf(String.class);
+        assertThat(message).isEqualTo(expectedMessage);
+    }
+
+    @Then("the task should be persisted without changes")
+    public void taskShouldBePersistedWithoutChanges() {
+        Tarea persisted = tareaRepository.findById(tareaId).orElseThrow();
+        assertThat(persisted.getAsignadoA()).isNull();
     }
 
     @Then("the task should be persisted assigned to the member")
