@@ -56,29 +56,27 @@ jobs:
         env:
           SPRING_PROFILES_ACTIVE: test
 
-      - name: SonarCloud Analysis with Coverage
-        uses: sonarsource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: Upload artefacto de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          args: >
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-            -Dsonar.organization=fabrica-2026-1-calidad
-            -Dsonar.projectKey=fabrica-2026-1-calidad_Caso13
+          name: jacoco-report
+          path: target/site/jacoco/
+          retention-days: 30
 
-      - name: Comentar resultados en PR
+      - name: Comentar estado en PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-            const reportPath = './target/site/jacoco/index.html';
-            if (fs.existsSync(reportPath)) {
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: 'Análisis completado. Revisa los resultados en SonarCloud y el reporte de cobertura en JaCoCo.'
-              });
-            }
+            const buildStatus = '${{ job.status }}';
+            const message = buildStatus === 'success' 
+              ? 'Tests y cobertura JaCoCo completados. Desactiva Automatic Analysis en SonarCloud para habilitar análisis manual.'
+              : 'Tests fallaron. Revisa los logs.'
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });
