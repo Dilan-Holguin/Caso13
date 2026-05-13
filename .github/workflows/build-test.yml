@@ -35,19 +35,15 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build y Test
-        run: mvn clean verify -DskipITs=true
+      - name: Build y Test (Unit + Acceptance)
+        run: mvn clean verify -Dspring.profiles.active=test
         env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/domesticas_test
-          SPRING_DATASOURCE_USERNAME: postgres
-          SPRING_DATASOURCE_PASSWORD: postgres
+          SPRING_PROFILES_ACTIVE: test
 
-      - name: Generar reporte de cobertura
+      - name: Generate Coverage Report
         run: mvn jacoco:report
         env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/domesticas_test
-          SPRING_DATASOURCE_USERNAME: postgres
-          SPRING_DATASOURCE_PASSWORD: postgres
+          SPRING_PROFILES_ACTIVE: test
 
       - name: Subir artefacto de pruebas
         if: always() 
