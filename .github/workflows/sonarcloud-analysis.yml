@@ -56,14 +56,16 @@ jobs:
         env:
           SPRING_PROFILES_ACTIVE: test
 
-      - name: Upload reporte JaCoCo a SonarCloud (Automatic Analysis)
-        if: success()
-        uses: codecov/codecov-action@v3
+      - name: SonarCloud Analysis with Coverage
+        uses: sonarsource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          files: ./target/site/jacoco/jacoco.xml
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
+          args: >
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+            -Dsonar.organization=fabrica-2026-1-calidad
+            -Dsonar.projectKey=fabrica-2026-1-calidad_Caso13
 
       - name: Comentar resultados en PR
         if: github.event_name == 'pull_request'
