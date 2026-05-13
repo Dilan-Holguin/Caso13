@@ -7,7 +7,6 @@ on:
 jobs:
   sonar-analysis:
     name: Análisis de Calidad con SonarCloud
-    if: github.repository_owner == 'fabrica-2026-1-calidad'
     runs-on: ubuntu-latest
     
     services:
@@ -53,23 +52,11 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
 
       - name: Build y Test con cobertura JaCoCo
-        run: mvn clean verify -DskipITs=true
+        run: mvn clean verify -Dspring.profiles.active=test
         env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/domesticas_test
-          SPRING_DATASOURCE_USERNAME: postgres
-          SPRING_DATASOURCE_PASSWORD: postgres
+          SPRING_PROFILES_ACTIVE: test
 
-      - name: Ejecutar análisis SonarCloud
-        run: >
-          mvn sonar:sonar
-          -Dsonar.organization=fabrica-2026-1-calidad
-          -Dsonar.projectKey=fabrica-2026-1-calidad_Caso13
-          -Dsonar.qualitygate.wait=true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      - name: Upload reporte de cobertura a SonarCloud
+      - name: Upload reporte JaCoCo a SonarCloud (Automatic Analysis)
         if: success()
         uses: codecov/codecov-action@v3
         with:
