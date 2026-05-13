@@ -1,10 +1,13 @@
 package com.eap08.domesticas.service;
 
 import com.eap08.domesticas.dto.TareaRequest.UpdateTareaRequest;
+import com.eap08.domesticas.dto.TareaRequest.CreateTareaRequest;
 import com.eap08.domesticas.dto.TareaResponse.TareaData;
 import com.eap08.domesticas.model.Hogar;
 import com.eap08.domesticas.model.Tarea;
 import com.eap08.domesticas.model.Usuario;
+import com.eap08.domesticas.model.UsuarioHogar;
+import com.eap08.domesticas.model.UsuarioHogarId;
 import com.eap08.domesticas.repository.HogarRepository;
 import com.eap08.domesticas.repository.TareaRepository;
 import com.eap08.domesticas.repository.UsuarioHogarRepository;
@@ -94,4 +97,61 @@ class TareaServiceTest {
 
         verify(tareaRepo).save(tarea);
     }
+
+        @Test
+        void shouldCreateTaskWithoutAssignee() {
+        // Arrange
+        Long hogarId = 20L;
+        Long adminId = 1L;
+        String adminEmail = "admin@example.com";
+
+        Hogar hogar = Hogar.builder().hogarId(hogarId).nombre("Hogar QA").build();
+
+        Usuario admin = new Usuario();
+        admin.setUsuarioId(adminId);
+        admin.setNombre("Admin QA");
+        admin.setEmail(adminEmail);
+
+        UsuarioHogar usuarioHogar = UsuarioHogar.builder()
+            .id(new UsuarioHogarId(adminId, hogarId))
+            .usuario(admin)
+            .hogar(hogar)
+            .rol(UsuarioHogar.ROL_ADMINISTRADOR)
+            .build();
+
+        CreateTareaRequest request = new CreateTareaRequest(
+            "Barrer sala",
+            "Tarea sin responsable",
+            Tarea.CAT_LIMPIEZA,
+            null,
+            null  // No assignee specified
+        );
+
+        Tarea createdTarea = Tarea.builder()
+            .tareaId(1L)
+            .hogar(hogar)
+            .titulo("Barrer sala")
+            .descripcion("Tarea sin responsable")
+            .categoria(Tarea.CAT_LIMPIEZA)
+            .estado(Tarea.ESTADO_PENDIENTE)
+            .asignadoA(null)  // Explicitly null
+            .build();
+
+        when(usuarioRepo.findByEmail(adminEmail)).thenReturn(Optional.of(admin));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(adminId, hogarId)).thenReturn(true);
+        when(hogarRepo.getReferenceById(hogarId)).thenReturn(hogar);
+        when(tareaRepo.save(any(Tarea.class))).thenReturn(createdTarea);
+
+        // Act
+        TareaData response = tareaService.crearTarea(hogarId, request, adminEmail);
+
+        // Assert
+        assertThat(response.asignadoA()).isNull();
+        assertThat(response.titulo()).isEqualTo("Barrer sala");
+        assertThat(response.descripcion()).isEqualTo("Tarea sin responsable");
+        assertThat(response.categoria()).isEqualTo(Tarea.CAT_LIMPIEZA);
+        assertThat(response.estado()).isEqualTo(Tarea.ESTADO_PENDIENTE);
+
+        verify(tareaRepo).save(any(Tarea.class));
+        }
 }
