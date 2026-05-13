@@ -1,13 +1,17 @@
 name: SonarCloud Analysis with JaCoCo
 
 on:
-  push:
-  pull_request:
+  # Ejecutar manualmente o cuando termine el workflow de Build e Tests
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Build e Tests"]
+    types: [completed]
 
 jobs:
   sonar-analysis:
     name: Análisis de Calidad con SonarCloud
+    # Ejecutar solo si no es trigger de workflow_run o si el workflow previo terminó con éxito
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -91,6 +95,9 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
+          echo "Instalando jq (si no está disponible)..."
+          sudo apt-get update && sudo apt-get install -y jq curl || true
+          echo "jq instalado"
           set -euo pipefail
           projectKey="fabrica-2026-1-calidad_Caso13"
           apiUrl="https://sonarcloud.io/api/qualitygates/project_status?projectKey=${projectKey}"
