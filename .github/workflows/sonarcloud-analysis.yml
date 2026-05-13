@@ -1,17 +1,15 @@
 name: SonarCloud Analysis with JaCoCo
 
 on:
-  # Ejecutar manualmente o cuando termine el workflow de Build e Tests
+  # Ejecutar al hacer push a la rama principal del fork o manualmente
+  push:
+    branches:
+      - main
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Build e Tests"]
-    types: [completed]
 
 jobs:
   sonar-analysis:
     name: Análisis de Calidad con SonarCloud
-    # Ejecutar solo si no es trigger de workflow_run o si el workflow previo terminó con éxito
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -65,31 +63,11 @@ jobs:
         env:
           SPRING_PROFILES_ACTIVE: test
 
-      - name: Análisis SonarCloud (Pull Request)
-        if: ${{ github.event_name == 'pull_request' }}
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          PR_KEY: ${{ github.event.pull_request.number }}
-          PR_BRANCH: ${{ github.head_ref }}
-          PR_BASE: ${{ github.base_ref }}
-        run: |
-          mvn -B sonar:sonar \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.token="$SONAR_TOKEN" \
-            -Dsonar.organization=fabrica-2026-1-calidad \
-            -Dsonar.projectKey=fabrica-2026-1-calidad_Caso13 \
-            -Dsonar.qualitygate.wait=false \
-            -Dsonar.exclusions=src/test/** \
-            -Dsonar.pullrequest.key="$PR_KEY" \
-            -Dsonar.pullrequest.branch="$PR_BRANCH" \
-            -Dsonar.pullrequest.base="$PR_BASE"
-
-      - name: Análisis SonarCloud (Branch / workflow_run)
-        if: ${{ github.event_name != 'pull_request' }}
+      - name: Análisis SonarCloud (Branch main del fork)
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          BRANCH_NAME="${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}"
+          BRANCH_NAME="${{ github.ref_name }}"
           echo "Usando branch: $BRANCH_NAME"
           mvn -B sonar:sonar \
             -Dsonar.host.url=https://sonarcloud.io \
