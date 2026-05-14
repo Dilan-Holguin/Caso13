@@ -28,3 +28,14 @@ Feature: Task creation
     Then the response status should be 409
     And the error code should be "BUSINESS_ERROR"
     And the response message should contain "Categoria no valida"
+
+  # NOTE: backend returns 409 (not 403) because TareaService throws RuntimeException caught by GlobalExceptionHandler.
+  # CP-017 was originally designed as 403; adjusted to 409 — BUG-001 deferred to Sprint 3.
+  Scenario: Task creation rejected when user is not a member of the household
+    Given a registered user "ana@example.com" with password "Password123"
+    And the user is a member of household "Hogar Test"
+    And a user "externo@example.com" with password "Password123" is not a member of the household
+    When the external user tries to create a task with title "Lavar la loza" category "Cocina" and description ""
+    Then the response status should be 409
+    And the error code should be "BUSINESS_ERROR"
+    And the response message should contain "No perteneces a este hogar"

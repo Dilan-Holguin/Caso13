@@ -66,6 +66,7 @@ public class TareaSteps {
     private String currentRawPassword;
     private Long currentHogarId;
     private String currentJwt;
+    private String externalJwt;
 
     // Runs before AuthSteps @Before (default order ~10000) to delete in cascade order
     @Before(order = 100)
@@ -109,6 +110,20 @@ public class TareaSteps {
         currentJwt = (String) loginData.get("token");
     }
 
+    @Given("a user {string} with password {string} is not a member of the household")
+    public void aUserIsNotMemberOfHousehold(String email, String password) throws Exception {
+        Usuario usuario = new Usuario();
+        usuario.setNombre("Externo");
+        usuario.setEmail(email);
+        usuario.setPasswordHash(passwordEncoder.encode(password));
+        usuarioRepository.saveAndFlush(usuario);
+
+        Map<String, Object> loginBody = Map.of("email", email, "password", password);
+        ResponseEntity<String> loginResponse = post("/api/auth/login", loginBody);
+        Map<String, Object> loginData = objectMapper.readValue(loginResponse.getBody(), new TypeReference<>() {});
+        externalJwt = (String) loginData.get("token");
+    }
+
     @When("the client creates a task with title {string} category {string} and description {string}")
     public void theClientCreatesATask(String title, String categoria, String descripcion) throws Exception {
         Map<String, Object> body = Map.of(
@@ -117,6 +132,16 @@ public class TareaSteps {
                 "descripcion", descripcion
         );
         context.setLastResponse(postAuth("/api/households/" + currentHogarId + "/tasks", body, currentJwt));
+    }
+
+    @When("the external user tries to create a task with title {string} category {string} and description {string}")
+    public void theExternalUserTriesToCreateATask(String title, String categoria, String descripcion) throws Exception {
+        Map<String, Object> body = Map.of(
+                "titulo", title,
+                "categoria", categoria,
+                "descripcion", descripcion
+        );
+        context.setLastResponse(postAuth("/api/households/" + currentHogarId + "/tasks", body, externalJwt));
     }
 
     @Then("the response should contain title {string} and category {string}")
