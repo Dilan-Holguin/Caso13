@@ -19,7 +19,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -86,5 +88,29 @@ class TareaServiceTest {
         assertThat(saved.getCategoria()).isEqualTo("Cocina");
         assertThat(saved.getEstado()).isEqualTo(Tarea.ESTADO_PENDIENTE);
         assertThat(saved.getDescripcion()).isEqualTo("Después del almuerzo");
+    }
+
+    @Test
+    void shouldThrowWhenCategoryIsInvalid() {
+        // Arrange
+        Long hogarId = 1L;
+        String emailCreador = "ana@example.com";
+
+        TareaRequest.CreateTareaRequest request = new TareaRequest.CreateTareaRequest(
+                "Hacer ejercicio", "", "Deportes", null, null);
+
+        Usuario usuario = new Usuario();
+        usuario.setUsuarioId(10L);
+        usuario.setEmail(emailCreador);
+
+        when(usuarioRepo.findByEmail(emailCreador)).thenReturn(Optional.of(usuario));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(10L, hogarId)).thenReturn(true);
+
+        // Act + Assert
+        assertThatThrownBy(() -> tareaService.crearTarea(hogarId, request, emailCreador))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Categoria no valida");
+
+        verify(tareaRepo, never()).save(any(Tarea.class));
     }
 }
