@@ -18,3 +18,13 @@ Feature: Task creation
     Then the response status should be 400
     And the error code should be "VALIDATION_ERROR"
     And the error details should contain "El titulo es obligatorio"
+
+  # NOTE: category validation is enforced by TareaService (not @Valid), so the backend returns 409 BUSINESS_ERROR.
+  # CP-016 was originally designed as 400; gap noted — see BUG-001 discussion.
+  Scenario: Task creation rejected with invalid category
+    Given a registered user "ana@example.com" with password "Password123"
+    And the user is a member of household "Hogar Test"
+    When the client creates a task with title "Hacer ejercicio" category "Deportes" and description ""
+    Then the response status should be 409
+    And the error code should be "BUSINESS_ERROR"
+    And the response message should contain "Categoria no valida"
