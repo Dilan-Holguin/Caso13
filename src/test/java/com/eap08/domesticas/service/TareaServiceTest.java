@@ -113,4 +113,28 @@ class TareaServiceTest {
 
         verify(tareaRepo, never()).save(any(Tarea.class));
     }
+
+    @Test
+    void shouldThrowWhenUserIsNotMemberOfHousehold() {
+        // Arrange
+        Long hogarId = 1L;
+        String emailCreador = "externo@example.com";
+
+        TareaRequest.CreateTareaRequest request = new TareaRequest.CreateTareaRequest(
+                "Lavar la loza", "", "Cocina", null, null);
+
+        Usuario usuario = new Usuario();
+        usuario.setUsuarioId(20L);
+        usuario.setEmail(emailCreador);
+
+        when(usuarioRepo.findByEmail(emailCreador)).thenReturn(Optional.of(usuario));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(20L, hogarId)).thenReturn(false);
+
+        // Act + Assert
+        assertThatThrownBy(() -> tareaService.crearTarea(hogarId, request, emailCreador))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("No perteneces a este hogar");
+
+        verify(tareaRepo, never()).save(any(Tarea.class));
+    }
 }
