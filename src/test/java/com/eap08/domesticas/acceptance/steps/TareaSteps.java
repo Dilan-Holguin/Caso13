@@ -25,6 +25,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -129,6 +130,13 @@ public class TareaSteps {
     public void theTaskEstadoShouldBe(String estado) throws Exception {
         Map<String, Object> body = responseAsMap();
         assertThat(body.get("estado")).isEqualTo(estado);
+    }
+
+    @Then("the error details should contain {string}")
+    public void theErrorDetailsShouldContain(String expectedMessage) throws Exception {
+        Map<String, Object> body = responseAsMap();
+        List<String> details = (List<String>) body.get("details");
+        assertThat(details).contains(expectedMessage);
     }
 
     private ResponseEntity<String> post(String path, Object body) throws Exception {

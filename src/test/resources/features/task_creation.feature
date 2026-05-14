@@ -10,3 +10,11 @@ Feature: Task creation
     Then the response status should be 201
     And the response should contain title "Lavar la loza" and category "Cocina"
     And the task estado should be "Pendiente"
+
+  Scenario: Task creation rejected with blank title
+    Given a registered user "ana@example.com" with password "Password123"
+    And the user is a member of household "Hogar Test"
+    When the client creates a task with title "" category "Limpieza" and description ""
+    Then the response status should be 400
+    And the error code should be "VALIDATION_ERROR"
+    And the error details should contain "El titulo es obligatorio"
