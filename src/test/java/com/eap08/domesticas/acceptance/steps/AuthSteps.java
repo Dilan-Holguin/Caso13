@@ -55,7 +55,8 @@ public class AuthSteps {
 
     @Autowired
     private HogarRepository hogarRepository;
-  
+
+    @Autowired
     private ScenarioContext context;
 
     @Before
@@ -209,7 +210,8 @@ public class AuthSteps {
         if (context.getLastResponse().getBody() == null || context.getLastResponse().getBody().isBlank()) {
             return Map.of();
         }
-        return objectMapper.readValue(context.getLastResponse().getBody(), new TypeReference<Map<String, Object>>() {});
+        return objectMapper.readValue(context.getLastResponse().getBody(), new TypeReference<Map<String, Object>>() {
+        });
     }
 
     private String url(String path) {

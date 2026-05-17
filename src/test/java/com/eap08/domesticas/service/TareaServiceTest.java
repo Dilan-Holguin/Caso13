@@ -16,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -137,4 +138,95 @@ class TareaServiceTest {
 
         verify(tareaRepo, never()).save(any(Tarea.class));
     }
+
+    @Test
+    void shouldAcceptTaskCreationWithFutureFechaLimite() {
+        // Arrange
+        Long hogarId = 1L;
+        String emailCreador = "ana@example.com";
+        LocalDateTime futureDate = LocalDateTime.parse("2026-12-31T23:59:00");
+
+        TareaRequest.CreateTareaRequest request = new TareaRequest.CreateTareaRequest(
+                "Pagar servicios", "Pago de servicios básicos", "Otro", futureDate, null);
+
+        Usuario usuario = new Usuario();
+        usuario.setUsuarioId(10L);
+        usuario.setEmail(emailCreador);
+
+        Hogar hogar = Hogar.builder().hogarId(hogarId).nombre("Hogar Test").build();
+
+        Tarea tareaGuardada = Tarea.builder()
+                .tareaId(100L)
+                .hogar(hogar)
+                .titulo("Pagar servicios")
+                .descripcion("Pago de servicios básicos")
+                .categoria("Otro")
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .fechaLimite(futureDate)
+                .build();
+
+        when(usuarioRepo.findByEmail(emailCreador)).thenReturn(Optional.of(usuario));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(10L, hogarId)).thenReturn(true);
+        when(hogarRepo.getReferenceById(hogarId)).thenReturn(hogar);
+        when(tareaRepo.save(any(Tarea.class))).thenReturn(tareaGuardada);
+
+        // Act
+        TareaResponse.TareaData result = tareaService.crearTarea(hogarId, request, emailCreador);
+
+        // Assert
+        assertThat(result.titulo()).isEqualTo("Pagar servicios");
+        assertThat(result.fechaLimite()).isEqualTo(futureDate);
+
+        ArgumentCaptor<Tarea> tareaCaptor = ArgumentCaptor.forClass(Tarea.class);
+        verify(tareaRepo).save(tareaCaptor.capture());
+        Tarea saved = tareaCaptor.getValue();
+        assertThat(saved.getFechaLimite()).isEqualTo(futureDate);
+    }
+
+    @Test
+    void shouldCorrectlyAssignFechaLimiteToTaskEntity() {
+        // Arrange
+        Long hogarId = 1L;
+        String emailCreador = "ana@example.com";
+        LocalDateTime futureDate = LocalDateTime.parse("2026-12-31T23:59:00");
+
+        TareaRequest.CreateTareaRequest request = new TareaRequest.CreateTareaRequest(
+                "Pagar servicios", "Pago de servicios básicos", "Otro", futureDate, null);
+
+        Usuario usuario = new Usuario();
+        usuario.setUsuarioId(10L);
+        usuario.setEmail(emailCreador);
+
+        Hogar hogar = Hogar.builder().hogarId(hogarId).nombre("Hogar Test").build();
+
+        Tarea tareaGuardada = Tarea.builder()
+                .tareaId(101L)
+                .hogar(hogar)
+                .titulo("Pagar servicios")
+                .descripcion("Pago de servicios básicos")
+                .categoria("Otro")
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .fechaLimite(futureDate)
+                .build();
+
+        when(usuarioRepo.findByEmail(emailCreador)).thenReturn(Optional.of(usuario));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(10L, hogarId)).thenReturn(true);
+        when(hogarRepo.getReferenceById(hogarId)).thenReturn(hogar);
+        when(tareaRepo.save(any(Tarea.class))).thenReturn(tareaGuardada);
+
+        // Act
+        TareaResponse.TareaData result = tareaService.crearTarea(hogarId, request, emailCreador);
+
+        // Assert: Verify that fechaLimite is assigned correctly in the entity
+        assertThat(result.fechaLimite()).isNotNull();
+        assertThat(result.fechaLimite()).isEqualTo(LocalDateTime.parse("2026-12-31T23:59:00"));
+
+        ArgumentCaptor<Tarea> tareaCaptor = ArgumentCaptor.forClass(Tarea.class);
+        verify(tareaRepo).save(tareaCaptor.capture());
+        Tarea saved = tareaCaptor.getValue();
+        assertThat(saved.getFechaLimite()).isNotNull();
+        assertThat(saved.getFechaLimite()).isEqualTo(futureDate);
+    }
 }
+
+    

@@ -61,6 +61,7 @@ public class TareaAssignmentSteps {
     private String memberName;
     private String memberEmail;
     private String memberPassword;
+    private Long editorId;
     private Long tareaId;
     private Long externalId;
     private String externalEmail;
@@ -77,6 +78,7 @@ public class TareaAssignmentSteps {
         editor.setEmail(editorEmail);
         editor.setPasswordHash(passwordEncoder.encode(editorPassword));
         editor = usuarioRepository.saveAndFlush(editor);
+        this.editorId = editor.getUsuarioId();
 
         Usuario member = new Usuario();
         member.setNombre("Miembro QA");
@@ -116,6 +118,215 @@ public class TareaAssignmentSteps {
                 .build();
         tarea = tareaRepository.saveAndFlush(tarea);
         this.tareaId = tarea.getTareaId();
+    }
+
+    @Given("a household has an editor user {string} with an existing task")
+    public void setupHouseholdWithEditorAndTask(String editorEmail) {
+        this.editorEmail = editorEmail;
+        this.editorPassword = "Password123";
+
+        Usuario editor = new Usuario();
+        editor.setNombre("Editor QA");
+        editor.setEmail(editorEmail);
+        editor.setPasswordHash(passwordEncoder.encode(editorPassword));
+        editor = usuarioRepository.saveAndFlush(editor);
+        this.editorId = editor.getUsuarioId();
+
+        Hogar hogar = Hogar.builder()
+                .nombre("Hogar QA")
+                .descripcion("Hogar para prueba de asignacion")
+                .build();
+        hogar = hogarRepository.saveAndFlush(hogar);
+
+        usuarioHogarRepository.saveAndFlush(UsuarioHogar.builder()
+                .id(new UsuarioHogarId(editor.getUsuarioId(), hogar.getHogarId()))
+                .usuario(editor)
+                .hogar(hogar)
+                .rol(UsuarioHogar.ROL_ADMINISTRADOR)
+                .build());
+
+        Tarea tarea = Tarea.builder()
+                .hogar(hogar)
+                .titulo("Barrer sala")
+                .descripcion("Caso positivo de asignacion")
+                .categoria(Tarea.CAT_LIMPIEZA)
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .build();
+        tarea = tareaRepository.saveAndFlush(tarea);
+        this.tareaId = tarea.getTareaId();
+    }
+
+    @Given("a household has an editor user {string} and member user {string}")
+    public void setupHouseholdWithEditorAndMember(String editorEmail, String memberEmail) {
+        this.editorEmail = editorEmail;
+        this.memberEmail = memberEmail;
+        this.editorPassword = "Password123";
+        this.memberPassword = "Password123";
+
+        Usuario editor = new Usuario();
+        editor.setNombre("Editor QA");
+        editor.setEmail(editorEmail);
+        editor.setPasswordHash(passwordEncoder.encode(editorPassword));
+        editor = usuarioRepository.saveAndFlush(editor);
+        this.editorId = editor.getUsuarioId();
+
+        Usuario member = new Usuario();
+        member.setNombre("Miembro QA");
+        member.setEmail(memberEmail);
+        member.setPasswordHash(passwordEncoder.encode(memberPassword));
+        member = usuarioRepository.saveAndFlush(member);
+
+        this.memberId = member.getUsuarioId();
+        this.memberName = member.getNombre();
+
+        Hogar hogar = Hogar.builder()
+                .nombre("Hogar QA")
+                .descripcion("Hogar para prueba de asignacion")
+                .build();
+        hogar = hogarRepository.saveAndFlush(hogar);
+
+        usuarioHogarRepository.saveAndFlush(UsuarioHogar.builder()
+                .id(new UsuarioHogarId(editor.getUsuarioId(), hogar.getHogarId()))
+                .usuario(editor)
+                .hogar(hogar)
+                .rol(UsuarioHogar.ROL_ADMINISTRADOR)
+                .build());
+
+        usuarioHogarRepository.saveAndFlush(UsuarioHogar.builder()
+                .id(new UsuarioHogarId(member.getUsuarioId(), hogar.getHogarId()))
+                .usuario(member)
+                .hogar(hogar)
+                .rol(UsuarioHogar.ROL_MIEMBRO)
+                .build());
+    }
+
+    @Given("a household has a viewer user {string} and member user {string} with an existing task")
+    public void setupHouseholdWithViewerAndMember(String viewerEmail, String memberEmail) {
+        this.editorEmail = viewerEmail;
+        this.editorPassword = "Password123";
+        this.memberEmail = memberEmail;
+        this.memberPassword = "Password123";
+
+        Usuario viewer = new Usuario();
+        viewer.setNombre("Viewer QA");
+        viewer.setEmail(viewerEmail);
+        viewer.setPasswordHash(passwordEncoder.encode(editorPassword));
+        viewer = usuarioRepository.saveAndFlush(viewer);
+        this.editorId = viewer.getUsuarioId();
+
+        Usuario member = new Usuario();
+        member.setNombre("Miembro QA");
+        member.setEmail(memberEmail);
+        member.setPasswordHash(passwordEncoder.encode(memberPassword));
+        member = usuarioRepository.saveAndFlush(member);
+
+        this.memberId = member.getUsuarioId();
+        this.memberName = member.getNombre();
+
+        Hogar hogar = Hogar.builder()
+                .nombre("Hogar QA")
+                .descripcion("Hogar para prueba de asignacion")
+                .build();
+        hogar = hogarRepository.saveAndFlush(hogar);
+
+        usuarioHogarRepository.saveAndFlush(UsuarioHogar.builder()
+                .id(new UsuarioHogarId(viewer.getUsuarioId(), hogar.getHogarId()))
+                .usuario(viewer)
+                .hogar(hogar)
+                .rol(UsuarioHogar.ROL_MIEMBRO)
+                .build());
+
+        usuarioHogarRepository.saveAndFlush(UsuarioHogar.builder()
+                .id(new UsuarioHogarId(member.getUsuarioId(), hogar.getHogarId()))
+                .usuario(member)
+                .hogar(hogar)
+                .rol(UsuarioHogar.ROL_MIEMBRO)
+                .build());
+
+        Tarea tarea = Tarea.builder()
+                .hogar(hogar)
+                .titulo("Barrer sala")
+                .descripcion("Caso negativo - viewer sin permisos")
+                .categoria(Tarea.CAT_LIMPIEZA)
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .build();
+        tarea = tareaRepository.saveAndFlush(tarea);
+        this.tareaId = tarea.getTareaId();
+    }
+
+    @When("the editor assigns the task to user {string}")
+    public void assignTaskToUser(String targetEmail) throws Exception {
+        String token = loginAndGetToken(editorEmail, editorPassword);
+        Long targetId = usuarioRepository.findByEmail(targetEmail)
+                .map(Usuario::getUsuarioId)
+                .orElse(Long.MAX_VALUE);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token);
+
+        String json = objectMapper.writeValueAsString(Map.of("asignadoAId", targetId));
+        HttpEntity<String> request = new HttpEntity<>(json, headers);
+
+        lastResponse = restTemplate.exchange(
+                url("/api/tasks/" + tareaId),
+                HttpMethod.PUT,
+                request,
+                String.class);
+    }
+
+    @When("the editor assigns a non existing task to the household member")
+    public void assignNonExistingTaskToMember() throws Exception {
+        String token = loginAndGetToken(editorEmail, editorPassword);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token);
+
+        String json = objectMapper.writeValueAsString(Map.of("asignadoAId", memberId));
+        HttpEntity<String> request = new HttpEntity<>(json, headers);
+
+        lastResponse = restTemplate.exchange(
+                url("/api/tasks/" + Long.MAX_VALUE),
+                HttpMethod.PUT,
+                request,
+                String.class);
+    }
+
+    @When("the viewer assigns the task to the household member")
+    public void viewerAssignsTaskToMember() throws Exception {
+        String token = loginAndGetToken(editorEmail, editorPassword);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token);
+
+        String json = objectMapper.writeValueAsString(Map.of("asignadoAId", memberId));
+        HttpEntity<String> request = new HttpEntity<>(json, headers);
+
+        lastResponse = restTemplate.exchange(
+                url("/api/tasks/" + tareaId),
+                HttpMethod.PUT,
+                request,
+                String.class);
+    }
+
+    @When("the editor assigns the task to himself")
+    public void editorAssignsTaskToHimself() throws Exception {
+        String token = loginAndGetToken(editorEmail, editorPassword);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token);
+
+        String json = objectMapper.writeValueAsString(Map.of("asignadoAId", editorId));
+        HttpEntity<String> request = new HttpEntity<>(json, headers);
+
+        lastResponse = restTemplate.exchange(
+                url("/api/tasks/" + tareaId),
+                HttpMethod.PUT,
+                request,
+                String.class);
     }
 
     @Given("a household has an editor user {string} and external user {string} with an existing task")
@@ -219,6 +430,7 @@ public class TareaAssignmentSteps {
     }
 
     @Then("the assignment response body should contain error message {string}")
+    @Then("the response body should contain error message {string}")
     public void responseShouldContainErrorMessage(String expectedMessage) throws Exception {
         Map<String, Object> body = responseAsMap();
         Object message = body.get("message");
@@ -240,6 +452,7 @@ public class TareaAssignmentSteps {
     }
 
     @Given("the task is currently assigned to the editor")
+    @Given("the task is already assigned to the editor")
     public void taskIsCurrentlyAssignedToEditor() {
         Tarea tarea = tareaRepository.findById(tareaId).orElseThrow();
         Usuario editor = usuarioRepository.findByEmail(editorEmail).orElseThrow();

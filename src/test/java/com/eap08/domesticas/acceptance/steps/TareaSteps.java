@@ -62,13 +62,8 @@ public class TareaSteps {
     @Autowired
     private ScenarioContext context;
 
-    private String currentEmail;
-    private String currentRawPassword;
-    private Long currentHogarId;
-    private String currentJwt;
-    private String externalJwt;
-
-    // Runs before AuthSteps @Before (default order ~10000) to delete in cascade order
+    // Runs before AuthSteps @Before (default order ~10000) to delete in cascade
+    // order
     @Before(order = 100)
     public void clearDatabase() {
         tareaRepository.deleteAll();
@@ -80,8 +75,8 @@ public class TareaSteps {
 
     @Given("a registered user {string} with password {string}")
     public void aRegisteredUser(String email, String password) {
-        currentEmail = email;
-        currentRawPassword = password;
+        context.setCurrentEmail(email);
+        context.setCurrentRawPassword(password);
         Usuario usuario = new Usuario();
         usuario.setNombre("Ana");
         usuario.setEmail(email);
@@ -93,9 +88,9 @@ public class TareaSteps {
     public void theUserIsAMemberOfHousehold(String nombreHogar) throws Exception {
         Hogar hogar = Hogar.builder().nombre(nombreHogar).build();
         hogar = hogarRepository.saveAndFlush(hogar);
-        currentHogarId = hogar.getHogarId();
+        context.setCurrentHogarId(hogar.getHogarId());
 
-        Usuario usuario = usuarioRepository.findByEmail(currentEmail).orElseThrow();
+        Usuario usuario = usuarioRepository.findByEmail(context.getCurrentEmail()).orElseThrow();
         UsuarioHogar membership = UsuarioHogar.builder()
                 .id(new UsuarioHogarId(usuario.getUsuarioId(), hogar.getHogarId()))
                 .usuario(usuario)
@@ -104,10 +99,12 @@ public class TareaSteps {
                 .build();
         usuarioHogarRepository.saveAndFlush(membership);
 
-        Map<String, Object> loginBody = Map.of("email", currentEmail, "password", currentRawPassword);
+        Map<String, Object> loginBody = Map.of("email", context.getCurrentEmail(), "password",
+                context.getCurrentRawPassword());
         ResponseEntity<String> loginResponse = post("/api/auth/login", loginBody);
-        Map<String, Object> loginData = objectMapper.readValue(loginResponse.getBody(), new TypeReference<>() {});
-        currentJwt = (String) loginData.get("token");
+        Map<String, Object> loginData = objectMapper.readValue(loginResponse.getBody(), new TypeReference<>() {
+        });
+        context.setCurrentJwt((String) loginData.get("token"));
     }
 
     @Given("a user {string} with password {string} is not a member of the household")
@@ -120,8 +117,9 @@ public class TareaSteps {
 
         Map<String, Object> loginBody = Map.of("email", email, "password", password);
         ResponseEntity<String> loginResponse = post("/api/auth/login", loginBody);
-        Map<String, Object> loginData = objectMapper.readValue(loginResponse.getBody(), new TypeReference<>() {});
-        externalJwt = (String) loginData.get("token");
+        Map<String, Object> loginData = objectMapper.readValue(loginResponse.getBody(), new TypeReference<>() {
+        });
+        context.setExternalJwt((String) loginData.get("token"));
     }
 
     @When("the client creates a task with title {string} category {string} and description {string}")
@@ -129,9 +127,9 @@ public class TareaSteps {
         Map<String, Object> body = Map.of(
                 "titulo", title,
                 "categoria", categoria,
-                "descripcion", descripcion
-        );
-        context.setLastResponse(postAuth("/api/households/" + currentHogarId + "/tasks", body, currentJwt));
+                "descripcion", descripcion);
+        context.setLastResponse(
+                postAuth("/api/households/" + context.getCurrentHogarId() + "/tasks", body, context.getCurrentJwt()));
     }
 
     @When("the external user tries to create a task with title {string} category {string} and description {string}")
@@ -139,9 +137,9 @@ public class TareaSteps {
         Map<String, Object> body = Map.of(
                 "titulo", title,
                 "categoria", categoria,
-                "descripcion", descripcion
-        );
-        context.setLastResponse(postAuth("/api/households/" + currentHogarId + "/tasks", body, externalJwt));
+                "descripcion", descripcion);
+        context.setLastResponse(
+                postAuth("/api/households/" + context.getCurrentHogarId() + "/tasks", body, context.getExternalJwt()));
     }
 
     @Then("the response should contain title {string} and category {string}")
@@ -185,7 +183,8 @@ public class TareaSteps {
         if (context.getLastResponse().getBody() == null || context.getLastResponse().getBody().isBlank()) {
             return Map.of();
         }
-        return objectMapper.readValue(context.getLastResponse().getBody(), new TypeReference<Map<String, Object>>() {});
+        return objectMapper.readValue(context.getLastResponse().getBody(), new TypeReference<Map<String, Object>>() {
+        });
     }
 
     private String url(String path) {
