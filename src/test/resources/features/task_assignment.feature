@@ -3,6 +3,8 @@ Feature: Task assignment to household member
   Background:
     Given the database is empty
 
+  # Happy Paths
+
   Scenario: Assign an existing task to a valid member of the same household
     Given a household has an editor user "editor@example.com" and member user "member@example.com" with an existing task
     When the editor assigns the task to the household member
@@ -15,14 +17,7 @@ Feature: Task assignment to household member
     When the admin creates a task without specifying an assignee
     Then the task creation response status should be 201
     And the task creation response should include null assignee info
-    And the task should be persisted without an assignee in the database
-
-  Scenario: Reject assignment when assignee is external to the household
-    Given a household has an editor user "editor@example.com" and external user "external@example.com" with an existing task
-    When the editor assigns the task to external user "external@example.com"
-    Then the assignment response status should be 409
-    And the assignment response body should contain error message "El usuario asignado no pertenece a este hogar"
-    And the task should be persisted without changes
+    And the task should be persisted without an assignee in the database  
 
   Scenario: Reassign task to another household member
     Given a household has an editor user "editor@example.com" and member user "member@example.com" with an existing task
@@ -39,3 +34,40 @@ Feature: Task assignment to household member
     And the member retrieves the task
     Then the task retrieval response status should be 200
     And the response should include assigned info for member email "member@example.com"
+
+  # Exceptional Paths
+
+  Scenario: Reject assignment when assignee does not exist
+    Given a household has an editor user "editor@example.com" with an existing task
+    When the editor assigns the task to user "ghost@example.com"
+    Then the assignment response status should be 404
+    And the response body should contain error message "Usuario no encontrado"
+    And the task should be persisted without changes
+
+  Scenario: Reject assignment when user has no permission
+    Given a household has a viewer user "viewer@example.com" and member user "member@example.com" with an existing task
+    When the viewer assigns the task to the household member
+    Then the assignment response status should be 403
+    And the response body should contain error message "No tiene permisos para asignar tareas"
+    And the task should be persisted without changes
+
+  Scenario: Reject assignment when assignee is external to the household
+    Given a household has an editor user "editor@example.com" and external user "external@example.com" with an existing task
+    When the editor assigns the task to external user "external@example.com"
+    Then the assignment response status should be 409
+    And the assignment response body should contain error message "El usuario asignado no pertenece a este hogar"
+    And the task should be persisted without changes
+    
+  Scenario: Reject assignment when task does not exist
+    Given a household has an editor user "editor@example.com" and member user "member@example.com"
+    When the editor assigns a non existing task to the household member
+    Then the assignment response status should be 404
+    And the response body should contain error message "Tarea no encontrada"
+
+  Scenario: Reject assignment when task is already assigned to the same member
+    Given a household has an editor user "editor@example.com" with an existing task
+    And the task is already assigned to the editor
+    When the editor assigns the task to himself
+    Then the assignment response status should be 409
+    And the response body should contain error message "La tarea ya está asignada a este usuario"
+
