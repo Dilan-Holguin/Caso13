@@ -60,6 +60,7 @@ public class TareaAssignmentSteps {
     private Long memberId;
     private String memberName;
     private String memberEmail;
+    private String memberPassword;
     private Long tareaId;
     private Long externalId;
     private String externalEmail;
@@ -69,6 +70,7 @@ public class TareaAssignmentSteps {
         this.editorEmail = editorEmail;
         this.memberEmail = memberEmail;
         this.editorPassword = "Password123";
+        this.memberPassword = "Password123";
 
         Usuario editor = new Usuario();
         editor.setNombre("Editor QA");
@@ -116,8 +118,8 @@ public class TareaAssignmentSteps {
         this.tareaId = tarea.getTareaId();
     }
 
-        @Given("a household has an editor user {string} and external user {string} with an existing task")
-        public void setupHouseholdWithEditorAndExternalUser(String editorEmail, String externalEmail) {
+    @Given("a household has an editor user {string} and external user {string} with an existing task")
+    public void setupHouseholdWithEditorAndExternalUser(String editorEmail, String externalEmail) {
         this.editorEmail = editorEmail;
         this.externalEmail = externalEmail;
         this.editorPassword = "Password123";
@@ -137,28 +139,28 @@ public class TareaAssignmentSteps {
         this.externalId = external.getUsuarioId();
 
         Hogar hogar = Hogar.builder()
-            .nombre("Hogar QA")
-            .descripcion("Hogar para prueba de asignacion")
-            .build();
+                .nombre("Hogar QA")
+                .descripcion("Hogar para prueba de asignacion")
+                .build();
         hogar = hogarRepository.saveAndFlush(hogar);
 
         usuarioHogarRepository.saveAndFlush(UsuarioHogar.builder()
-            .id(new UsuarioHogarId(editor.getUsuarioId(), hogar.getHogarId()))
-            .usuario(editor)
-            .hogar(hogar)
-            .rol(UsuarioHogar.ROL_ADMINISTRADOR)
-            .build());
+                .id(new UsuarioHogarId(editor.getUsuarioId(), hogar.getHogarId()))
+                .usuario(editor)
+                .hogar(hogar)
+                .rol(UsuarioHogar.ROL_ADMINISTRADOR)
+                .build());
 
         Tarea tarea = Tarea.builder()
-            .hogar(hogar)
-            .titulo("Barrer sala")
-            .descripcion("Caso negativo - asignar a externo")
-            .categoria(Tarea.CAT_LIMPIEZA)
-            .estado(Tarea.ESTADO_PENDIENTE)
-            .build();
+                .hogar(hogar)
+                .titulo("Barrer sala")
+                .descripcion("Caso negativo - asignar a externo")
+                .categoria(Tarea.CAT_LIMPIEZA)
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .build();
         tarea = tareaRepository.saveAndFlush(tarea);
         this.tareaId = tarea.getTareaId();
-        }
+    }
 
     @When("the editor assigns the task to the household member")
     public void assignTaskToMember() throws Exception {
@@ -235,6 +237,33 @@ public class TareaAssignmentSteps {
         Tarea persisted = tareaRepository.findById(tareaId).orElseThrow();
         assertThat(persisted.getAsignadoA()).isNotNull();
         assertThat(persisted.getAsignadoA().getUsuarioId()).isEqualTo(memberId);
+    }
+
+    @Given("the task is currently assigned to the editor")
+    public void taskIsCurrentlyAssignedToEditor() {
+        Tarea tarea = tareaRepository.findById(tareaId).orElseThrow();
+        Usuario editor = usuarioRepository.findByEmail(editorEmail).orElseThrow();
+        tarea.setAsignadoA(editor);
+        tareaRepository.saveAndFlush(tarea);
+    }
+
+    @When("the member retrieves the task")
+    public void memberRetrievesTask() throws Exception {
+        String token = loginAndGetToken(memberEmail, memberPassword);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+
+        lastResponse = restTemplate.exchange(
+                url("/api/tasks/" + tareaId),
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                String.class);
+    }
+
+    @Then("the task retrieval response status should be {int}")
+    public void taskRetrievalResponseStatusShouldBe(int expectedStatus) {
+        assertThat(lastResponse.getStatusCode().value()).isEqualTo(expectedStatus);
     }
 
     private String loginAndGetToken(String email, String password) throws Exception {

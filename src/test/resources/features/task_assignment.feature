@@ -23,3 +23,19 @@ Feature: Task assignment to household member
     Then the assignment response status should be 409
     And the assignment response body should contain error message "El usuario asignado no pertenece a este hogar"
     And the task should be persisted without changes
+
+  Scenario: Reassign task to another household member
+    Given a household has an editor user "editor@example.com" and member user "member@example.com" with an existing task
+    And the task is currently assigned to the editor
+    When the editor assigns the task to the household member
+    Then the assignment response status should be 200
+    And the response should include assigned info for member email "member@example.com"
+    And the task should be persisted assigned to the member
+
+  Scenario: Reassigned task persists in database
+    Given a household has an editor user "editor@example.com" and member user "member@example.com" with an existing task
+    And the task is currently assigned to the editor
+    When the editor assigns the task to the household member
+    And the member retrieves the task
+    Then the task retrieval response status should be 200
+    And the response should include assigned info for member email "member@example.com"
