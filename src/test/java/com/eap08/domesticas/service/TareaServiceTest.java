@@ -1,19 +1,17 @@
 package com.eap08.domesticas.service;
 
-import com.eap08.domesticas.dto.TareaRequest.UpdateTareaRequest;
-import com.eap08.domesticas.dto.TareaRequest.CreateTareaRequest;
-import com.eap08.domesticas.dto.TareaResponse.TareaData;
+import com.eap08.domesticas.dto.TareaRequest;
+import com.eap08.domesticas.dto.TareaResponse;
 import com.eap08.domesticas.model.Hogar;
 import com.eap08.domesticas.model.Tarea;
 import com.eap08.domesticas.model.Usuario;
-import com.eap08.domesticas.model.UsuarioHogar;
-import com.eap08.domesticas.model.UsuarioHogarId;
 import com.eap08.domesticas.repository.HogarRepository;
 import com.eap08.domesticas.repository.TareaRepository;
 import com.eap08.domesticas.repository.UsuarioHogarRepository;
 import com.eap08.domesticas.repository.UsuarioRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -21,7 +19,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -44,114 +44,97 @@ class TareaServiceTest {
     private TareaService tareaService;
 
     @Test
-    void shouldAssignTaskToValidHouseholdMember() {
+    void shouldCreateTaskSuccessfully() {
         // Arrange
-        Long tareaId = 10L;
-        Long hogarId = 20L;
-        Long editorId = 1L;
-        Long miembroId = 2L;
+        Long hogarId = 1L;
+        String emailCreador = "ana@example.com";
 
-        Hogar hogar = Hogar.builder().hogarId(hogarId).nombre("Hogar QA").build();
+        TareaRequest.CreateTareaRequest request = new TareaRequest.CreateTareaRequest(
+                "Lavar la loza", "Después del almuerzo", "Cocina", null, null);
 
-        Usuario editor = new Usuario();
-        editor.setUsuarioId(editorId);
-        editor.setEmail("editor@example.com");
+        Usuario usuario = new Usuario();
+        usuario.setUsuarioId(10L);
+        usuario.setEmail(emailCreador);
 
-        Usuario miembro = new Usuario();
-        miembro.setUsuarioId(miembroId);
-        miembro.setNombre("Miembro QA");
-        miembro.setEmail("member@example.com");
+        Hogar hogar = Hogar.builder().hogarId(hogarId).nombre("Hogar Test").build();
 
-        Tarea tarea = Tarea.builder()
-                .tareaId(tareaId)
+        Tarea tareaGuardada = Tarea.builder()
+                .tareaId(100L)
                 .hogar(hogar)
-                .titulo("Barrer sala")
-                .categoria(Tarea.CAT_LIMPIEZA)
+                .titulo("Lavar la loza")
+                .descripcion("Después del almuerzo")
+                .categoria("Cocina")
                 .estado(Tarea.ESTADO_PENDIENTE)
                 .build();
 
-        UpdateTareaRequest request = new UpdateTareaRequest(
-                null,
-                null,
-                null,
-                null,
-                miembroId);
-
-        when(tareaRepo.findById(tareaId)).thenReturn(Optional.of(tarea));
-        when(usuarioRepo.findByEmail("editor@example.com")).thenReturn(Optional.of(editor));
-        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(editorId, hogarId)).thenReturn(true);
-        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(miembroId, hogarId)).thenReturn(true);
-        when(usuarioRepo.findById(miembroId)).thenReturn(Optional.of(miembro));
-        when(tareaRepo.save(any(Tarea.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(usuarioRepo.findByEmail(emailCreador)).thenReturn(Optional.of(usuario));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(10L, hogarId)).thenReturn(true);
+        when(hogarRepo.getReferenceById(hogarId)).thenReturn(hogar);
+        when(tareaRepo.save(any(Tarea.class))).thenReturn(tareaGuardada);
 
         // Act
-        TareaData response = tareaService.actualizarTarea(tareaId, request, "editor@example.com");
+        TareaResponse.TareaData result = tareaService.crearTarea(hogarId, request, emailCreador);
 
         // Assert
-        assertThat(tarea.getAsignadoA()).isNotNull();
-        assertThat(tarea.getAsignadoA().getUsuarioId()).isEqualTo(miembroId);
-        assertThat(response.asignadoA()).isNotNull();
-        assertThat(response.asignadoA().usuarioId()).isEqualTo(miembroId);
-        assertThat(response.asignadoA().nombre()).isEqualTo("Miembro QA");
-        assertThat(response.asignadoA().email()).isEqualTo("member@example.com");
+        assertThat(result.titulo()).isEqualTo("Lavar la loza");
+        assertThat(result.categoria()).isEqualTo("Cocina");
+        assertThat(result.estado()).isEqualTo(Tarea.ESTADO_PENDIENTE);
+        assertThat(result.hogarId()).isEqualTo(hogarId);
 
-        verify(tareaRepo).save(tarea);
+        ArgumentCaptor<Tarea> tareaCaptor = ArgumentCaptor.forClass(Tarea.class);
+        verify(tareaRepo).save(tareaCaptor.capture());
+        Tarea saved = tareaCaptor.getValue();
+        assertThat(saved.getTitulo()).isEqualTo("Lavar la loza");
+        assertThat(saved.getCategoria()).isEqualTo("Cocina");
+        assertThat(saved.getEstado()).isEqualTo(Tarea.ESTADO_PENDIENTE);
+        assertThat(saved.getDescripcion()).isEqualTo("Después del almuerzo");
     }
 
-        @Test
-        void shouldCreateTaskWithoutAssignee() {
+    @Test
+    void shouldThrowWhenCategoryIsInvalid() {
         // Arrange
-        Long hogarId = 20L;
-        Long adminId = 1L;
-        String adminEmail = "admin@example.com";
+        Long hogarId = 1L;
+        String emailCreador = "ana@example.com";
 
-        Hogar hogar = Hogar.builder().hogarId(hogarId).nombre("Hogar QA").build();
+        TareaRequest.CreateTareaRequest request = new TareaRequest.CreateTareaRequest(
+                "Hacer ejercicio", "", "Deportes", null, null);
 
-        Usuario admin = new Usuario();
-        admin.setUsuarioId(adminId);
-        admin.setNombre("Admin QA");
-        admin.setEmail(adminEmail);
+        Usuario usuario = new Usuario();
+        usuario.setUsuarioId(10L);
+        usuario.setEmail(emailCreador);
 
-        UsuarioHogar usuarioHogar = UsuarioHogar.builder()
-            .id(new UsuarioHogarId(adminId, hogarId))
-            .usuario(admin)
-            .hogar(hogar)
-            .rol(UsuarioHogar.ROL_ADMINISTRADOR)
-            .build();
+        when(usuarioRepo.findByEmail(emailCreador)).thenReturn(Optional.of(usuario));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(10L, hogarId)).thenReturn(true);
 
-        CreateTareaRequest request = new CreateTareaRequest(
-            "Barrer sala",
-            "Tarea sin responsable",
-            Tarea.CAT_LIMPIEZA,
-            null,
-            null  // No assignee specified
-        );
+        // Act + Assert
+        assertThatThrownBy(() -> tareaService.crearTarea(hogarId, request, emailCreador))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Categoria no valida");
 
-        Tarea createdTarea = Tarea.builder()
-            .tareaId(1L)
-            .hogar(hogar)
-            .titulo("Barrer sala")
-            .descripcion("Tarea sin responsable")
-            .categoria(Tarea.CAT_LIMPIEZA)
-            .estado(Tarea.ESTADO_PENDIENTE)
-            .asignadoA(null)  // Explicitly null
-            .build();
+        verify(tareaRepo, never()).save(any(Tarea.class));
+    }
 
-        when(usuarioRepo.findByEmail(adminEmail)).thenReturn(Optional.of(admin));
-        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(adminId, hogarId)).thenReturn(true);
-        when(hogarRepo.getReferenceById(hogarId)).thenReturn(hogar);
-        when(tareaRepo.save(any(Tarea.class))).thenReturn(createdTarea);
+    @Test
+    void shouldThrowWhenUserIsNotMemberOfHousehold() {
+        // Arrange
+        Long hogarId = 1L;
+        String emailCreador = "externo@example.com";
 
-        // Act
-        TareaData response = tareaService.crearTarea(hogarId, request, adminEmail);
+        TareaRequest.CreateTareaRequest request = new TareaRequest.CreateTareaRequest(
+                "Lavar la loza", "", "Cocina", null, null);
 
-        // Assert
-        assertThat(response.asignadoA()).isNull();
-        assertThat(response.titulo()).isEqualTo("Barrer sala");
-        assertThat(response.descripcion()).isEqualTo("Tarea sin responsable");
-        assertThat(response.categoria()).isEqualTo(Tarea.CAT_LIMPIEZA);
-        assertThat(response.estado()).isEqualTo(Tarea.ESTADO_PENDIENTE);
+        Usuario usuario = new Usuario();
+        usuario.setUsuarioId(20L);
+        usuario.setEmail(emailCreador);
 
-        verify(tareaRepo).save(any(Tarea.class));
-        }
+        when(usuarioRepo.findByEmail(emailCreador)).thenReturn(Optional.of(usuario));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(20L, hogarId)).thenReturn(false);
+
+        // Act + Assert
+        assertThatThrownBy(() -> tareaService.crearTarea(hogarId, request, emailCreador))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("No perteneces a este hogar");
+
+        verify(tareaRepo, never()).save(any(Tarea.class));
+    }
 }
