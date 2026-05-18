@@ -19,3 +19,11 @@ Feature: Task deadline assignment
         Then the response status should be 400
         And the error details should contain "La fecha limite debe ser futura"
         And no task should be created
+
+    Scenario: Crear tarea sin fecha límite
+        Given a registered user "ana@example.com" with password "Password123"
+        And the user is a member of household "Hogar Test"
+        When the client creates a task with title "Recordar comprar leche" category "Compras" description ""
+        Then the response status should be 201
+        And the response should contain title "Recordar comprar leche" and category "Compras"
+        And the response should contain fechaLimite null

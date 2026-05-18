@@ -132,6 +132,16 @@ public class TareaSteps {
                 postAuth("/api/households/" + context.getCurrentHogarId() + "/tasks", body, context.getCurrentJwt()));
     }
 
+    @When("the client creates a task with title {string} category {string} description {string}")
+    public void theClientCreatesATaskVariant(String title, String categoria, String descripcion) throws Exception {
+        Map<String, Object> body = Map.of(
+                "titulo", title,
+                "categoria", categoria,
+                "descripcion", descripcion);
+        context.setLastResponse(
+                postAuth("/api/households/" + context.getCurrentHogarId() + "/tasks", body, context.getCurrentJwt()));
+    }
+
     @When("the external user tries to create a task with title {string} category {string} and description {string}")
     public void theExternalUserTriesToCreateATask(String title, String categoria, String descripcion) throws Exception {
         Map<String, Object> body = Map.of(

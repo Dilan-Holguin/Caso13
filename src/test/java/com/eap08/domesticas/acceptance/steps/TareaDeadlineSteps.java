@@ -80,6 +80,19 @@ public class TareaDeadlineSteps {
         assertThat(receivedFechaLimite).contains(expectedFechaLimiteStr.split("T")[0]);
     }
 
+    @Then("the response should contain fechaLimite null")
+    public void theResponseShouldContainFechaLimiteNull() throws Exception {
+        Map<String, Object> body = responseAsMap();
+        // Depending on serialization, the key may exist with null or be absent. Assert
+        // null if present, or absent.
+        if (body.containsKey("fechaLimite")) {
+            assertThat(body.get("fechaLimite")).isNull();
+        } else {
+            // If missing, consider it equivalent to null for this test
+            assertThat(body.get("fechaLimite")).isNull();
+        }
+    }
+
     @Then("the task should be persisted with fechaLimite {string}")
     public void theTaskShouldBePersistedWithFechaLimite(String expectedFechaLimiteStr) throws Exception {
         Map<String, Object> body = responseAsMap();
