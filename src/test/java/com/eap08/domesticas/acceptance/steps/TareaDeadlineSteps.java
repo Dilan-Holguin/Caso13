@@ -64,6 +64,7 @@ public class TareaDeadlineSteps {
     private ScenarioContext context;
 
     @When("the client creates a task with title {string} category {string} description {string} and fechaLimite {string}")
+    @When("la persona crea una tarea con título {string} categoría {string} descripción {string} y fecha límite {string}")
     public void theClientCreatesATaskWithFechaLimite(String title, String categoria, String descripcion,
             String fechaLimiteStr) throws Exception {
         LocalDateTime fechaLimite = LocalDateTime.parse(fechaLimiteStr);
@@ -77,6 +78,7 @@ public class TareaDeadlineSteps {
     }
 
     @Then("the response should contain fechaLimite {string}")
+    @Then("la respuesta muestra la fecha límite {string}")
     public void theResponseShouldContainFechaLimite(String expectedFechaLimiteStr) throws Exception {
         Map<String, Object> body = responseAsMap();
         Object fechaLimiteRaw = body.get("fechaLimite");
@@ -99,7 +101,13 @@ public class TareaDeadlineSteps {
         }
     }
 
+    @Then("la respuesta muestra la fecha límite vacía")
+    public void laRespuestaMuestraLaFechaLimiteVacia() throws Exception {
+        theResponseShouldContainFechaLimiteNull();
+    }
+
     @Then("the task should be persisted with fechaLimite {string}")
+    @Then("la tarea queda guardada con la fecha límite {string}")
     public void theTaskShouldBePersistedWithFechaLimite(String expectedFechaLimiteStr) throws Exception {
         Map<String, Object> body = responseAsMap();
         Object tareaIdRaw = body.get("tareaId");
@@ -114,6 +122,11 @@ public class TareaDeadlineSteps {
     @Then("no task should be created")
     public void noTaskShouldBeCreated() {
         assertThat(tareaRepository.count()).isEqualTo(0);
+    }
+
+    @Then("no se crea ninguna tarea")
+    public void noSeCreaNingunaTarea() {
+        noTaskShouldBeCreated();
     }
 
     private ResponseEntity<String> postAuth(String path, Object body, String jwt) throws Exception {
@@ -137,7 +150,7 @@ public class TareaDeadlineSteps {
         return "http://localhost:" + port + path;
     }
 
-    @Given("a task exists with title {string} and fechaLimite {string}")
+    @Given("existe una tarea con título {string} y fecha límite {string}")
     public void aTaskExistsWithTitleAndFechaLimite(String title, String fechaLimiteStr) throws Exception {
         java.time.LocalDateTime fechaLimite = java.time.LocalDateTime.parse(fechaLimiteStr);
         Map<String, Object> body = Map.of(
@@ -168,6 +181,7 @@ public class TareaDeadlineSteps {
     }
 
     @When("the user updates the task fechaLimite to {string}")
+    @When("la persona actualiza la fecha límite de la tarea a {string}")
     public void theUserUpdatesTheTaskFechaLimiteTo(String newFechaLimiteStr) throws Exception {
         java.time.LocalDateTime fechaLimite = java.time.LocalDateTime.parse(newFechaLimiteStr);
         Map<String, Object> body = Map.of("fechaLimite", fechaLimite);
@@ -184,11 +198,13 @@ public class TareaDeadlineSteps {
     }
 
     @Then("the task is updated")
+    @Then("la tarea se actualiza correctamente")
     public void theTaskIsUpdated() {
         assertThat(context.getLastResponse().getStatusCode().value()).isEqualTo(200);
     }
 
     @Then("the response should contain updatedAt updated")
+    @Then("la modificación queda registrada")
     public void theResponseShouldContainUpdatedAtUpdated() throws Exception {
         // Read the persisted value from DB to avoid relying on controller serialization
         Long tareaId = context.getCurrentTareaId();
@@ -203,5 +219,10 @@ public class TareaDeadlineSteps {
         } else {
             assertThat(persistedUpdatedAt).isNotNull();
         }
+    }
+
+    @Then("la tarea se rechaza porque la fecha límite debe ser futura")
+    public void laTareaSeRechazaPorqueLaFechaLimiteDebeSerFutura() {
+        assertThat(context.getLastResponse().getStatusCode().value()).isEqualTo(400);
     }
 }

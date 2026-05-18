@@ -1,73 +1,69 @@
-Feature: Task assignment to household member
+Feature: Asignación de tareas al hogar
 
   Background:
-    Given the database is empty
+    Given la base de datos está vacía
 
-  # Happy Paths
+  Scenario: Se asigna una tarea existente a un miembro válido del mismo hogar
+    Given un hogar tiene un usuario editor "editor@example.com" y un usuario miembro "member@example.com" con una tarea existente
+    When el editor asigna la tarea al miembro del hogar
+    Then la asignación se completa correctamente
+    And la respuesta muestra al miembro asignado con correo "member@example.com"
+    And la tarea queda guardada asignada al miembro
 
-  Scenario: Assign an existing task to a valid member of the same household
-    Given a household has an editor user "editor@example.com" and member user "member@example.com" with an existing task
-    When the editor assigns the task to the household member
-    Then the assignment response status should be 200
-    And the response should include assigned info for member email "member@example.com"
-    And the task should be persisted assigned to the member
+  Scenario: Se crea una tarea sin responsable asignado
+    Given un hogar tiene un usuario administrador "admin@example.com" sin tarea existente
+    When el administrador crea una tarea sin indicar responsable
+    Then la tarea se crea correctamente
+    And la respuesta deja el responsable vacío
+    And la tarea queda guardada sin responsable
 
-  Scenario: Create a task without an assigned responsible member
-    Given a household has an admin user "admin@example.com" with no existing task
-    When the admin creates a task without specifying an assignee
-    Then the task creation response status should be 201
-    And the task creation response should include null assignee info
-    And the task should be persisted without an assignee in the database  
+  Scenario: Se reasigna una tarea a otro miembro del hogar
+    Given un hogar tiene un usuario editor "editor@example.com" y un usuario miembro "member@example.com" con una tarea existente
+    And la tarea está actualmente asignada al editor
+    When el editor asigna la tarea al miembro del hogar
+    Then la asignación se completa correctamente
+    And la respuesta muestra al miembro asignado con correo "member@example.com"
+    And la tarea queda guardada asignada al miembro
 
-  Scenario: Reassign task to another household member
-    Given a household has an editor user "editor@example.com" and member user "member@example.com" with an existing task
-    And the task is currently assigned to the editor
-    When the editor assigns the task to the household member
-    Then the assignment response status should be 200
-    And the response should include assigned info for member email "member@example.com"
-    And the task should be persisted assigned to the member
+  Scenario: La tarea reasignada se conserva en la base de datos
+    Given un hogar tiene un usuario editor "editor@example.com" y un usuario miembro "member@example.com" con una tarea existente
+    And la tarea está actualmente asignada al editor
+    When el editor asigna la tarea al miembro del hogar
+    And el miembro consulta la tarea
+    Then la consulta devuelve la tarea correctamente
+    And la respuesta muestra al miembro asignado con correo "member@example.com"
 
-  Scenario: Reassigned task persists in database
-    Given a household has an editor user "editor@example.com" and member user "member@example.com" with an existing task
-    And the task is currently assigned to the editor
-    When the editor assigns the task to the household member
-    And the member retrieves the task
-    Then the task retrieval response status should be 200
-    And the response should include assigned info for member email "member@example.com"
+  Scenario: Se rechaza la asignación cuando el destinatario no existe
+    Given un hogar tiene un usuario editor "editor@example.com" con una tarea existente
+    When el editor intenta asignar la tarea al usuario "ghost@example.com"
+    Then la asignación falla porque el usuario no existe
+    And el mensaje de respuesta contiene "Usuario no encontrado"
+    And la tarea queda guardada sin cambios
 
-  # Exceptional Paths
+  Scenario: Se rechaza la asignación cuando la persona no tiene permisos
+    Given un hogar tiene un usuario observador "viewer@example.com" y un usuario miembro "member@example.com" con una tarea existente
+    When el observador asigna la tarea al miembro del hogar
+    Then la asignación falla porque no tiene permisos
+    And el mensaje de respuesta contiene "No tiene permisos para asignar tareas"
+    And la tarea queda guardada sin cambios
 
-  Scenario: Reject assignment when assignee does not exist
-    Given a household has an editor user "editor@example.com" with an existing task
-    When the editor assigns the task to user "ghost@example.com"
-    Then the assignment response status should be 404
-    And the response body should contain error message "Usuario no encontrado"
-    And the task should be persisted without changes
+  Scenario: Se rechaza la asignación cuando el usuario es externo al hogar
+    Given un hogar tiene un usuario editor "editor@example.com" y un usuario externo "external@example.com" con una tarea existente
+    When el editor asigna la tarea al usuario externo "external@example.com"
+    Then la asignación falla porque el usuario no pertenece al hogar
+    And el mensaje de respuesta contiene "El usuario asignado no pertenece a este hogar"
+    And la tarea queda guardada sin cambios
 
-  Scenario: Reject assignment when user has no permission
-    Given a household has a viewer user "viewer@example.com" and member user "member@example.com" with an existing task
-    When the viewer assigns the task to the household member
-    Then the assignment response status should be 403
-    And the response body should contain error message "No tiene permisos para asignar tareas"
-    And the task should be persisted without changes
+  Scenario: Se rechaza la asignación cuando la tarea no existe
+    Given un hogar tiene un usuario editor "editor@example.com" y un usuario miembro "member@example.com"
+    When el editor asigna una tarea inexistente al miembro del hogar
+    Then la asignación falla porque la tarea no existe
+    And el mensaje de respuesta contiene "Tarea no encontrada"
 
-  Scenario: Reject assignment when assignee is external to the household
-    Given a household has an editor user "editor@example.com" and external user "external@example.com" with an existing task
-    When the editor assigns the task to external user "external@example.com"
-    Then the assignment response status should be 409
-    And the assignment response body should contain error message "El usuario asignado no pertenece a este hogar"
-    And the task should be persisted without changes
-    
-  Scenario: Reject assignment when task does not exist
-    Given a household has an editor user "editor@example.com" and member user "member@example.com"
-    When the editor assigns a non existing task to the household member
-    Then the assignment response status should be 404
-    And the response body should contain error message "Tarea no encontrada"
-
-  Scenario: Reject assignment when task is already assigned to the same member
-    Given a household has an editor user "editor@example.com" with an existing task
-    And the task is already assigned to the editor
-    When the editor assigns the task to himself
-    Then the assignment response status should be 409
-    And the response body should contain error message "La tarea ya está asignada a este usuario"
+  Scenario: Se rechaza la asignación cuando la tarea ya está asignada al mismo usuario
+    Given un hogar tiene un usuario editor "editor@example.com" con una tarea existente
+    And la tarea ya está asignada al editor
+    When el editor se asigna la tarea a sí mismo
+    Then la asignación falla porque la tarea ya está asignada a ese usuario
+    And el mensaje de respuesta contiene "La tarea ya está asignada a este usuario"
 

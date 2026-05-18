@@ -73,7 +73,7 @@ public class TareaSteps {
         usuarioRepository.deleteAll();
     }
 
-    @Given("a registered user {string} with password {string}")
+    @Given("existe un usuario registrado {string} con contraseña {string}")
     public void aRegisteredUser(String email, String password) {
         context.setCurrentEmail(email);
         context.setCurrentRawPassword(password);
@@ -84,7 +84,7 @@ public class TareaSteps {
         usuarioRepository.saveAndFlush(usuario);
     }
 
-    @Given("the user is a member of household {string}")
+    @Given("el usuario pertenece al hogar {string}")
     public void theUserIsAMemberOfHousehold(String nombreHogar) throws Exception {
         Hogar hogar = Hogar.builder().nombre(nombreHogar).build();
         hogar = hogarRepository.saveAndFlush(hogar);
@@ -107,7 +107,7 @@ public class TareaSteps {
         context.setCurrentJwt((String) loginData.get("token"));
     }
 
-    @Given("a user {string} with password {string} is not a member of the household")
+    @Given("existe una persona externa {string} con contraseña {string} que no pertenece al hogar")
     public void aUserIsNotMemberOfHousehold(String email, String password) throws Exception {
         Usuario usuario = new Usuario();
         usuario.setNombre("Externo");
@@ -123,6 +123,7 @@ public class TareaSteps {
     }
 
     @When("the client creates a task with title {string} category {string} and description {string}")
+    @When("la persona crea una tarea con título {string} categoría {string} y descripción {string}")
     public void theClientCreatesATask(String title, String categoria, String descripcion) throws Exception {
         Map<String, Object> body = Map.of(
                 "titulo", title,
@@ -133,6 +134,7 @@ public class TareaSteps {
     }
 
     @When("the client creates a task with title {string} category {string} description {string}")
+    @When("la persona crea una tarea con título {string} categoría {string} descripción {string}")
     public void theClientCreatesATaskVariant(String title, String categoria, String descripcion) throws Exception {
         Map<String, Object> body = Map.of(
                 "titulo", title,
@@ -143,6 +145,7 @@ public class TareaSteps {
     }
 
     @When("the external user tries to create a task with title {string} category {string} and description {string}")
+    @When("la persona externa intenta crear una tarea con título {string} categoría {string} y descripción {string}")
     public void theExternalUserTriesToCreateATask(String title, String categoria, String descripcion) throws Exception {
         Map<String, Object> body = Map.of(
                 "titulo", title,
@@ -153,6 +156,7 @@ public class TareaSteps {
     }
 
     @Then("the response should contain title {string} and category {string}")
+    @Then("la respuesta devuelve el título {string} y la categoría {string}")
     public void theResponseShouldContainTitleAndCategory(String title, String categoria) throws Exception {
         Map<String, Object> body = responseAsMap();
         assertThat(body.get("titulo")).isEqualTo(title);
@@ -160,16 +164,38 @@ public class TareaSteps {
     }
 
     @Then("the task estado should be {string}")
+    @Then("la tarea queda en estado {string}")
     public void theTaskEstadoShouldBe(String estado) throws Exception {
         Map<String, Object> body = responseAsMap();
         assertThat(body.get("estado")).isEqualTo(estado);
     }
 
     @Then("the error details should contain {string}")
+    @Then("el detalle del error contiene {string}")
     public void theErrorDetailsShouldContain(String expectedMessage) throws Exception {
         Map<String, Object> body = responseAsMap();
         List<String> details = (List<String>) body.get("details");
         assertThat(details).contains(expectedMessage);
+    }
+
+    @Then("la tarea se crea correctamente")
+    public void laTareaSeCreaCorrectamente() {
+        assertThat(context.getLastResponse().getStatusCode().value()).isEqualTo(201);
+    }
+
+    @Then("la creación se rechaza por validación")
+    public void laCreacionSeRechazaPorValidacion() {
+        assertThat(context.getLastResponse().getStatusCode().value()).isEqualTo(400);
+    }
+
+    @Then("la creación se rechaza por una regla de negocio")
+    public void laCreacionSeRechazaPorUnaReglaDeNegocio() {
+        assertThat(context.getLastResponse().getStatusCode().value()).isEqualTo(409);
+    }
+
+    @Then("la creación se rechaza porque la persona no pertenece al hogar")
+    public void laCreacionSeRechazaPorqueLaPersonaNoPerteneceAlHogar() {
+        assertThat(context.getLastResponse().getStatusCode().value()).isEqualTo(409);
     }
 
     private ResponseEntity<String> post(String path, Object body) throws Exception {
