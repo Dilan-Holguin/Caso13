@@ -92,6 +92,11 @@ public class TareaDeadlineSteps {
         assertThat(persistedTask.getFechaLimite()).isEqualTo(expectedFechaLimite);
     }
 
+    @Then("no task should be created")
+    public void noTaskShouldBeCreated() {
+        assertThat(tareaRepository.count()).isEqualTo(0);
+    }
+
     private ResponseEntity<String> postAuth(String path, Object body, String jwt) throws Exception {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
