@@ -5,6 +5,7 @@ import com.eap08.domesticas.model.Tarea;
 import com.eap08.domesticas.model.Usuario;
 import com.eap08.domesticas.model.UsuarioHogar;
 import com.eap08.domesticas.model.UsuarioHogarId;
+import com.eap08.domesticas.acceptance.ScenarioContext;
 import com.eap08.domesticas.repository.HogarRepository;
 import com.eap08.domesticas.repository.TareaRepository;
 import com.eap08.domesticas.repository.UsuarioHogarRepository;
@@ -53,6 +54,9 @@ public class TareaCreationSteps {
     @Autowired
     private TareaRepository tareaRepository;
 
+    @Autowired
+    private ScenarioContext context;
+
     private ResponseEntity<String> lastResponse;
     private String adminEmail;
     private String adminPassword;
@@ -60,7 +64,6 @@ public class TareaCreationSteps {
     private Long hogarId;
     private Long tareaId;
 
-    @Given("a household has an admin user {string} with no existing task")
     public void setupHouseholdWithoutAssignee(String adminEmail) {
         this.adminEmail = adminEmail;
         this.adminPassword = "Password123";
@@ -89,6 +92,11 @@ public class TareaCreationSteps {
                 .build());
     }
 
+    @Given("un hogar tiene un usuario administrador {string} sin tarea existente")
+    public void unHogarTieneUnUsuarioAdministradorSinTareaExistente(String adminEmail) {
+        setupHouseholdWithoutAssignee(adminEmail);
+    }
+
     @When("the admin creates a task without specifying an assignee")
     public void createTaskWithoutAssignee() throws Exception {
         String token = loginAndGetToken(adminEmail, adminPassword);
@@ -100,8 +108,7 @@ public class TareaCreationSteps {
         Map<String, Object> requestBody = Map.of(
                 "titulo", "Barrer sala",
                 "descripcion", "Tarea sin responsable",
-                "categoria", "Limpieza"
-        );
+                "categoria", "Limpieza");
         String json = objectMapper.writeValueAsString(requestBody);
         HttpEntity<String> request = new HttpEntity<>(json, headers);
 
@@ -109,6 +116,7 @@ public class TareaCreationSteps {
                 url("/api/households/" + hogarId + "/tasks"),
                 request,
                 String.class);
+        context.setLastResponse(lastResponse);
 
         // Log error response for debugging
         if (lastResponse.getStatusCode().value() != 201) {
@@ -124,22 +132,44 @@ public class TareaCreationSteps {
         }
     }
 
-        @Then("the task creation response status should be {int}")
-        public void taskCreationResponseStatusShouldBe(int expectedStatus) {
+    @When("el administrador crea una tarea sin indicar responsable")
+    public void elAdministradorCreaUnaTareaSinIndicarResponsable() throws Exception {
+        createTaskWithoutAssignee();
+    }
+
+    @Then("the task creation response status should be {int}")
+    public void taskCreationResponseStatusShouldBe(int expectedStatus) {
         assertThat(lastResponse.getStatusCode().value()).isEqualTo(expectedStatus);
     }
 
-        @Then("the task creation response should include null assignee info")
-        public void taskCreationResponseShouldIncludeNullAssigneeInfo() throws Exception {
+    @Then("la tarea queda guardada sin responsable")
+    public void laTareaQuedaGuardadaSinResponsable() {
+        assertThat(tareaId).isNotNull();
+        Tarea persisted = tareaRepository.findById(tareaId).orElseThrow();
+        assertThat(persisted.getAsignadoA()).isNull();
+    }
+
+    @Then("the task creation response should include null assignee info")
+    public void taskCreationResponseShouldIncludeNullAssigneeInfo() throws Exception {
         Map<String, Object> body = responseAsMap();
         assertThat(body).containsEntry("asignadoA", null);
     }
 
-        @Then("the task should be persisted without an assignee in the database")
-        public void taskShouldBePersistedWithoutAssigneeInDatabase() {
+    @Then("la respuesta deja el responsable vacío")
+    public void laRespuestaDejaElResponsableVacio() throws Exception {
+        taskCreationResponseShouldIncludeNullAssigneeInfo();
+    }
+
+    @Then("the task should be persisted without an assignee in the database")
+    public void taskShouldBePersistedWithoutAssigneeInDatabase() {
         assertThat(tareaId).isNotNull();
         Tarea persisted = tareaRepository.findById(tareaId).orElseThrow();
         assertThat(persisted.getAsignadoA()).isNull();
+    }
+
+    @Then("la tarea queda guardada sin responsable en la base de datos")
+    public void laTareaQuedaGuardadaSinResponsableEnLaBaseDeDatos() {
+        taskShouldBePersistedWithoutAssigneeInDatabase();
     }
 
     private String loginAndGetToken(String email, String password) throws Exception {
