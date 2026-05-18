@@ -27,3 +27,12 @@ Feature: Task deadline assignment
         Then the response status should be 201
         And the response should contain title "Recordar comprar leche" and category "Compras"
         And the response should contain fechaLimite null
+
+    Scenario: Modificar la fecha límite de una tarea existente
+        Given a registered user "ana@example.com" with password "Password123"
+        And the user is a member of household "Hogar Test"
+        And a task exists with title "Tarea actualizable" and fechaLimite "2027-01-01T12:00:00"
+        When the user updates the task fechaLimite to "2027-01-15T12:00:00"
+        Then the task is updated
+        And the response should contain fechaLimite "2027-01-15T12:00:00"
+        And the response should contain updatedAt updated

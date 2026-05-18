@@ -14,6 +14,8 @@ public class ScenarioContext {
     private Long currentHogarId;
     private String currentJwt;
     private String externalJwt;
+    private Long currentTareaId;
+    private java.time.LocalDateTime originalUpdatedAt;
 
     public ResponseEntity<String> getLastResponse() {
         return lastResponse;
@@ -61,5 +63,21 @@ public class ScenarioContext {
 
     public void setExternalJwt(String externalJwt) {
         this.externalJwt = externalJwt;
+    }
+
+    public Long getCurrentTareaId() {
+        return currentTareaId;
+    }
+
+    public void setCurrentTareaId(Long currentTareaId) {
+        this.currentTareaId = currentTareaId;
+    }
+
+    public java.time.LocalDateTime getOriginalUpdatedAt() {
+        return originalUpdatedAt;
+    }
+
+    public void setOriginalUpdatedAt(java.time.LocalDateTime originalUpdatedAt) {
+        this.originalUpdatedAt = originalUpdatedAt;
     }
 }

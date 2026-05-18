@@ -229,6 +229,67 @@ class TareaServiceTest {
         }
 
         @Test
+        void shouldUpdateFechaLimiteAndRefreshUpdatedAt() {
+                // Arrange
+                Long tareaId = 50L;
+                Long hogarId = 1L;
+                String emailEditor = "ana@example.com";
+
+                java.time.LocalDateTime originalFecha = java.time.LocalDateTime.parse("2026-01-02T12:00:00");
+                java.time.LocalDateTime originalUpdatedAt = java.time.LocalDateTime.parse("2026-01-01T12:00:00");
+                java.time.LocalDateTime newFecha = java.time.LocalDateTime.parse("2027-01-15T12:00:00");
+                java.time.LocalDateTime laterUpdatedAt = originalUpdatedAt.plusMinutes(10);
+
+                Hogar hogar = Hogar.builder().hogarId(hogarId).nombre("Hogar Test").build();
+
+                Tarea existing = Tarea.builder()
+                                .tareaId(tareaId)
+                                .hogar(hogar)
+                                .titulo("Tarea actualizable")
+                                .descripcion("")
+                                .categoria("Otro")
+                                .estado(Tarea.ESTADO_PENDIENTE)
+                                .fechaLimite(originalFecha)
+                                .updatedAt(originalUpdatedAt)
+                                .build();
+
+                Tarea saved = Tarea.builder()
+                                .tareaId(tareaId)
+                                .hogar(hogar)
+                                .titulo("Tarea actualizable")
+                                .descripcion("")
+                                .categoria("Otro")
+                                .estado(Tarea.ESTADO_PENDIENTE)
+                                .fechaLimite(newFecha)
+                                .updatedAt(laterUpdatedAt)
+                                .build();
+
+                TareaRequest.UpdateTareaRequest request = new TareaRequest.UpdateTareaRequest(null, null, null,
+                                newFecha, null);
+
+                when(tareaRepo.findById(tareaId)).thenReturn(java.util.Optional.of(existing));
+                Usuario editor = new Usuario();
+                editor.setUsuarioId(10L);
+                editor.setEmail(emailEditor);
+                when(usuarioRepo.findByEmail(emailEditor)).thenReturn(Optional.of(editor));
+                when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(10L, hogarId)).thenReturn(true);
+                when(tareaRepo.save(any(Tarea.class))).thenReturn(saved);
+
+                // Act
+                TareaResponse.TareaData result = tareaService.actualizarTarea(tareaId, request, emailEditor);
+
+                // Assert
+                assertThat(result.fechaLimite()).isEqualTo(newFecha);
+                assertThat(result.updatedAt()).isNotNull();
+                assertThat(result.updatedAt()).isAfter(originalUpdatedAt);
+
+                ArgumentCaptor<Tarea> captor = ArgumentCaptor.forClass(Tarea.class);
+                verify(tareaRepo).save(captor.capture());
+                Tarea captured = captor.getValue();
+                assertThat(captured.getFechaLimite()).isEqualTo(newFecha);
+        }
+
+        @Test
         void shouldPersistNullFechaLimiteWhenNotProvided() {
                 // Arrange
                 Long hogarId = 1L;

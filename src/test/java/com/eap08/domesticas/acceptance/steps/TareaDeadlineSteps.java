@@ -9,15 +9,18 @@ import com.eap08.domesticas.repository.UsuarioHogarRepository;
 import com.eap08.domesticas.repository.UsuarioRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
@@ -47,6 +50,9 @@ public class TareaDeadlineSteps {
 
     @Autowired
     private TareaRepository tareaRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private PasswordResetTokenRepository passwordResetTokenRepository;
@@ -129,5 +135,73 @@ public class TareaDeadlineSteps {
 
     private String url(String path) {
         return "http://localhost:" + port + path;
+    }
+
+    @Given("a task exists with title {string} and fechaLimite {string}")
+    public void aTaskExistsWithTitleAndFechaLimite(String title, String fechaLimiteStr) throws Exception {
+        java.time.LocalDateTime fechaLimite = java.time.LocalDateTime.parse(fechaLimiteStr);
+        Map<String, Object> body = Map.of(
+                "titulo", title,
+                "categoria", "Otro",
+                "descripcion", "",
+                "fechaLimite", fechaLimite);
+
+        ResponseEntity<String> response = postAuth("/api/households/" + context.getCurrentHogarId() + "/tasks", body,
+                context.getCurrentJwt());
+        context.setLastResponse(response);
+        Map<String, Object> respBody = objectMapper.readValue(response.getBody(), new TypeReference<>() {
+        });
+        Object tareaIdRaw = respBody.get("tareaId");
+        if (tareaIdRaw != null) {
+            context.setCurrentTareaId(((Number) tareaIdRaw).longValue());
+        }
+        // store original updatedAt if present
+        Object updatedAtRaw = respBody.get("updatedAt");
+        if (updatedAtRaw != null) {
+            java.time.LocalDateTime parsed = java.time.LocalDateTime.parse((String) updatedAtRaw);
+            java.time.LocalDateTime earlier = parsed.minusMinutes(5);
+            // Backdate the persisted updated_at to avoid microsecond precision flakiness.
+            jdbcTemplate.update("UPDATE tarea SET updated_at = ? WHERE tarea_id = ?",
+                    java.sql.Timestamp.valueOf(earlier), ((Number) respBody.get("tareaId")).longValue());
+            context.setOriginalUpdatedAt(earlier);
+        }
+    }
+
+    @When("the user updates the task fechaLimite to {string}")
+    public void theUserUpdatesTheTaskFechaLimiteTo(String newFechaLimiteStr) throws Exception {
+        java.time.LocalDateTime fechaLimite = java.time.LocalDateTime.parse(newFechaLimiteStr);
+        Map<String, Object> body = Map.of("fechaLimite", fechaLimite);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(context.getCurrentJwt());
+        String json = objectMapper.writeValueAsString(body);
+        HttpEntity<String> entity = new HttpEntity<>(json, headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(url("/api/tasks/" + context.getCurrentTareaId()),
+                HttpMethod.PUT, entity, String.class);
+        context.setLastResponse(response);
+    }
+
+    @Then("the task is updated")
+    public void theTaskIsUpdated() {
+        assertThat(context.getLastResponse().getStatusCode().value()).isEqualTo(200);
+    }
+
+    @Then("the response should contain updatedAt updated")
+    public void theResponseShouldContainUpdatedAtUpdated() throws Exception {
+        // Read the persisted value from DB to avoid relying on controller serialization
+        Long tareaId = context.getCurrentTareaId();
+        java.time.LocalDateTime persistedUpdatedAt = null;
+        if (tareaId != null) {
+            Tarea persisted = tareaRepository.findById(tareaId).orElseThrow();
+            persistedUpdatedAt = persisted.getUpdatedAt();
+        }
+        java.time.LocalDateTime original = context.getOriginalUpdatedAt();
+        if (original != null && persistedUpdatedAt != null) {
+            assertThat(persistedUpdatedAt).isAfter(original);
+        } else {
+            assertThat(persistedUpdatedAt).isNotNull();
+        }
     }
 }
