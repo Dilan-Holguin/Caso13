@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   postgres:
     image: postgres:15
@@ -12,12 +10,38 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d:ro
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${SPRING_DATASOURCE_USERNAME:-postgres} -d ${SPRING_DATASOURCE_DB:-domesticas_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: domesticas_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${SPRING_DATASOURCE_DB:-domesticas_db}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-postgres}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-cambia-este-secreto-por-uno-fuerte-de-al-menos-256-bits}
+      APP_JWT_EXPIRATION: ${APP_JWT_EXPIRATION:-86400000}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-sandbox.smtp.mailtrap.io}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-2525}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost:3000}
+      APP_CORS_ORIGINS: ${APP_CORS_ORIGINS:-https://project-tdwx8.vercel.app,http://localhost:3000}
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    restart: always
 
 volumes:
   postgres_data:
