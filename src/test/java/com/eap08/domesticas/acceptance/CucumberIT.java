@@ -11,5 +11,5 @@ import org.junit.platform.suite.api.Suite;
 @SelectClasspathResource("features")
 @ConfigurationParameter(key = Constants.GLUE_PROPERTY_NAME, value = "com.eap08.domesticas.acceptance")
 @ConfigurationParameter(key = Constants.PLUGIN_PROPERTY_NAME, value = "pretty,summary")
-public class CucumberTestRunner {
+public class CucumberIT {
 }
