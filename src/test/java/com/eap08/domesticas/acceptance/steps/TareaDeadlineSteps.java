@@ -173,7 +173,7 @@ public class TareaDeadlineSteps {
         if (updatedAtRaw != null) {
             java.time.LocalDateTime parsed = java.time.LocalDateTime.parse((String) updatedAtRaw);
             java.time.LocalDateTime earlier = parsed.minusMinutes(5);
-            // Backdate the persisted updated_at to avoid microsecond precision flakiness.
+            // Backdate updated_at enough to ensure the later update is strictly greater.
             jdbcTemplate.update("UPDATE tarea SET updated_at = ? WHERE tarea_id = ?",
                     java.sql.Timestamp.valueOf(earlier), ((Number) respBody.get("tareaId")).longValue());
             context.setOriginalUpdatedAt(earlier);
