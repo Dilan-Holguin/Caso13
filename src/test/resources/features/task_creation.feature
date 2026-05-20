@@ -1,41 +1,37 @@
-Feature: Task creation
+Feature: Creación de tareas
 
   Background:
-    Given the database is empty
+    Given la base de datos está vacía
 
-  Scenario: Task creation succeeds with valid data
-    Given a registered user "ana@example.com" with password "Password123"
-    And the user is a member of household "Hogar Test"
-    When the client creates a task with title "Lavar la loza" category "Cocina" and description "Después del almuerzo"
-    Then the response status should be 201
-    And the response should contain title "Lavar la loza" and category "Cocina"
-    And the task estado should be "Pendiente"
+  Scenario: La creación de una tarea se completa con datos válidos
+    Given existe un usuario registrado "ana@example.com" con contraseña "Password123"
+    And el usuario pertenece al hogar "Hogar Test"
+    When la persona crea una tarea con título "Lavar la loza" categoría "Cocina" y descripción "Después del almuerzo"
+    Then la tarea se crea correctamente
+    And la respuesta devuelve el título "Lavar la loza" y la categoría "Cocina"
+    And la tarea queda en estado "Pendiente"
 
-  Scenario: Task creation rejected with blank title
-    Given a registered user "ana@example.com" with password "Password123"
-    And the user is a member of household "Hogar Test"
-    When the client creates a task with title "" category "Limpieza" and description ""
-    Then the response status should be 400
-    And the error code should be "VALIDATION_ERROR"
-    And the error details should contain "El titulo es obligatorio"
+  Scenario: La creación de una tarea se rechaza cuando el título está vacío
+    Given existe un usuario registrado "ana@example.com" con contraseña "Password123"
+    And el usuario pertenece al hogar "Hogar Test"
+    When la persona crea una tarea con título "" categoría "Limpieza" y descripción ""
+    Then la creación se rechaza por validación
+    And se muestra que hay un error de validación
+    And el detalle del error contiene "El titulo es obligatorio"
 
-  # NOTE: category validation is enforced by TareaService (not @Valid), so the backend returns 409 BUSINESS_ERROR.
-  # CP-016 was originally designed as 400; gap noted — see BUG-001 discussion.
-  Scenario: Task creation rejected with invalid category
-    Given a registered user "ana@example.com" with password "Password123"
-    And the user is a member of household "Hogar Test"
-    When the client creates a task with title "Hacer ejercicio" category "Deportes" and description ""
-    Then the response status should be 409
-    And the error code should be "BUSINESS_ERROR"
-    And the response message should contain "Categoria no valida"
+  Scenario: La creación de una tarea se rechaza por categoría no válida
+    Given existe un usuario registrado "ana@example.com" con contraseña "Password123"
+    And el usuario pertenece al hogar "Hogar Test"
+    When la persona crea una tarea con título "Hacer ejercicio" categoría "Deportes" y descripción ""
+    Then la creación se rechaza por una regla de negocio
+    And se muestra que hay una regla de negocio
+    And el mensaje de respuesta contiene "Categoria no valida"
 
-  # NOTE: backend returns 409 (not 403) because TareaService throws RuntimeException caught by GlobalExceptionHandler.
-  # CP-017 was originally designed as 403; adjusted to 409 — BUG-001 deferred to Sprint 3.
-  Scenario: Task creation rejected when user is not a member of the household
-    Given a registered user "ana@example.com" with password "Password123"
-    And the user is a member of household "Hogar Test"
-    And a user "externo@example.com" with password "Password123" is not a member of the household
-    When the external user tries to create a task with title "Lavar la loza" category "Cocina" and description ""
-    Then the response status should be 409
-    And the error code should be "BUSINESS_ERROR"
-    And the response message should contain "No perteneces a este hogar"
+  Scenario: La creación de una tarea se rechaza cuando la persona no pertenece al hogar
+    Given existe un usuario registrado "ana@example.com" con contraseña "Password123"
+    And el usuario pertenece al hogar "Hogar Test"
+    And existe una persona externa "externo@example.com" con contraseña "Password123" que no pertenece al hogar
+    When la persona externa intenta crear una tarea con título "Lavar la loza" categoría "Cocina" y descripción ""
+    Then la creación se rechaza por una regla de negocio
+    And se muestra que hay una regla de negocio
+    And el mensaje de respuesta contiene "No perteneces a este hogar"

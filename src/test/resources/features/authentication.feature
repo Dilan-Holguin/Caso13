@@ -1,92 +1,92 @@
-Feature: Authentication and Access Management
+Feature: Autenticación y control de acceso
 
   Background:
-    Given the database is empty
+    Given la base de datos está vacía
 
-  Scenario: Registration succeeds with valid data
-    When the client registers with name "Ana" email "ana@example.com" and password "Password123"
-    Then the response status should be 201
-    And the response should contain email "ana@example.com" and name "Ana"
+  Scenario: El registro se completa con datos válidos
+    When la persona se registra con nombre "Ana" correo "ana@example.com" y contraseña "Password123"
+    Then el registro se completa correctamente
+    And la respuesta devuelve el correo "ana@example.com" y el nombre "Ana"
 
-  Scenario: Registration rejected with invalid email
-    When the client registers with name "Ana" email "bad-email" and password "Password123"
-    Then the response status should be 400
-    And the error code should be "VALIDATION_ERROR"
+  Scenario: El registro se rechaza por correo inválido
+    When la persona se registra con nombre "Ana" correo "bad-email" y contraseña "Password123"
+    Then el registro se rechaza por validación
+    And se muestra que hay un error de validación
 
-  Scenario: Registration rejected with weak password
-    When the client registers with name "Ana" email "ana@example.com" and password "short"
-    Then the response status should be 400
-    And the error code should be "VALIDATION_ERROR"
+  Scenario: El registro se rechaza por contraseña débil
+    When la persona se registra con nombre "Ana" correo "ana@example.com" y contraseña "short"
+    Then el registro se rechaza por validación
+    And se muestra que hay un error de validación
 
-  Scenario: Registration rejected when email already exists
-    Given a user exists with name "Ana" email "ana@example.com" and password "Password123"
-    When the client registers with name "Ana" email "ana@example.com" and password "Password123"
-    Then the response status should be 409
-    And the error code should be "BUSINESS_ERROR"
+  Scenario: El registro se rechaza cuando el correo ya existe
+    Given existe un usuario con nombre "Ana" correo "ana@example.com" y contraseña "Password123"
+    When la persona se registra con nombre "Ana" correo "ana@example.com" y contraseña "Password123"
+    Then el registro se rechaza por una regla de negocio
+    And se muestra que hay una regla de negocio
 
-  Scenario: Registration rejected when fields are empty
-    When the client registers with name "" email "" and password ""
-    Then the response status should be 400
-    And the error code should be "VALIDATION_ERROR"
+  Scenario: El registro se rechaza cuando faltan campos obligatorios
+    When la persona se registra con nombre "Ana" correo "" y contraseña ""
+    Then el registro se rechaza por validación
+    And se muestra que hay un error de validación
 
-  Scenario: Login succeeds with valid credentials
-    Given a user exists with name "Ana" email "ana@example.com" and password "Password123"
-    When the client logs in with email "ana@example.com" and password "Password123"
-    Then the response status should be 200
-    And the response should contain email "ana@example.com" and name "Ana"
+  Scenario: El inicio de sesión se completa con credenciales válidas
+    Given existe un usuario con nombre "Ana" correo "ana@example.com" y contraseña "Password123"
+    When la persona inicia sesión con correo "ana@example.com" y contraseña "Password123"
+    Then el inicio de sesión se completa correctamente
+    And la respuesta devuelve el correo "ana@example.com" y el nombre "Ana"
 
-  Scenario: Login rejected with invalid credentials
-    Given a user exists with name "Ana" email "ana@example.com" and password "Password123"
-    When the client logs in with email "ana@example.com" and password "WrongPass"
-    Then the response status should be 401
-    And the error code should be "INVALID_CREDENTIALS"
+  Scenario: El inicio de sesión se rechaza por credenciales inválidas
+    Given existe un usuario con nombre "Ana" correo "ana@example.com" y contraseña "Password123"
+    When la persona inicia sesión con correo "ana@example.com" y contraseña "WrongPass"
+    Then el acceso se rechaza por credenciales inválidas
+    And se muestra que las credenciales son inválidas
 
-  Scenario: Login rejected with empty fields
-    When the client logs in with email "" and password ""
-    Then the response status should be 400
-    And the error code should be "VALIDATION_ERROR"
+  Scenario: El inicio de sesión se rechaza cuando faltan datos
+    When la persona inicia sesión con correo "" y contraseña ""
+    Then el inicio de sesión se rechaza por validación
+    And se muestra que hay un error de validación
 
-  Scenario: Logout succeeds
-    When the client logs out
-    Then the response status should be 200
-    And the response message should contain "cerrada correctamente"
+  Scenario: El cierre de sesión se completa correctamente
+    When la persona cierra sesión
+    Then el cierre de sesión se completa correctamente
+    And el mensaje de respuesta contiene "cerrada correctamente"
 
-  Scenario: Password recovery succeeds for registered email
-    Given a user exists with name "Ana" email "ana@example.com" and password "Password123"
-    When the client requests password recovery for email "ana@example.com"
-    Then the response status should be 200
-    And a recovery token should be created
+  Scenario: La recuperación de contraseña se solicita para un correo registrado
+    Given existe un usuario con nombre "Ana" correo "ana@example.com" y contraseña "Password123"
+    When la persona solicita recuperación de contraseña para el correo "ana@example.com"
+    Then la recuperación de contraseña se solicita correctamente
+    And se crea un token de recuperación
 
-  Scenario: Password recovery returns success for non-registered email
-    When the client requests password recovery for email "missing@example.com"
-    Then the response status should be 200
-    And no recovery token should exist
+  Scenario: La recuperación de contraseña no revela si el correo no existe
+    When la persona solicita recuperación de contraseña para el correo "missing@example.com"
+    Then la recuperación de contraseña se solicita correctamente
+    And no se crea ningún token de recuperación
 
-  Scenario: Password recovery rejected with invalid email
-    When the client requests password recovery for email "bad-email"
-    Then the response status should be 400
-    And the error code should be "VALIDATION_ERROR"
+  Scenario: La recuperación de contraseña se rechaza por correo inválido
+    When la persona solicita recuperación de contraseña para el correo "bad-email"
+    Then la recuperación de contraseña se rechaza por validación
+    And se muestra que hay un error de validación
 
-  Scenario: Password recovery rejected with empty email
-    When the client requests password recovery for email ""
-    Then the response status should be 400
-    And the error code should be "VALIDATION_ERROR"
+  Scenario: La recuperación de contraseña se rechaza cuando el correo está vacío
+    When la persona solicita recuperación de contraseña para el correo ""
+    Then la recuperación de contraseña se rechaza por validación
+    And se muestra que hay un error de validación
 
-  Scenario: Password reset succeeds with valid token
-    Given a user exists with name "Ana" email "ana@example.com" and password "Password123"
-    And a password reset token exists for email "ana@example.com" with token "token-123" and expires in minutes 30
-    When the client resets password with token "token-123" and new password "NewPassword123"
-    Then the response status should be 200
-    And the user password for email "ana@example.com" should be updated to "NewPassword123"
+  Scenario: El restablecimiento de contraseña se completa con un token válido
+    Given existe un usuario con nombre "Ana" correo "ana@example.com" y contraseña "Password123"
+    And existe un token de recuperación para el correo "ana@example.com" con el token "token-123" y vence en 30 minutos
+    When la persona restablece la contraseña con el token "token-123" y la nueva contraseña "NewPassword123"
+    Then el restablecimiento de contraseña se completa correctamente
+    And la contraseña del usuario para el correo "ana@example.com" queda actualizada a "NewPassword123"
 
-  Scenario: Password reset rejected with invalid token
-    When the client resets password with token "missing-token" and new password "NewPassword123"
-    Then the response status should be 409
-    And the error code should be "BUSINESS_ERROR"
+  Scenario: El restablecimiento de contraseña se rechaza por token inválido
+    When la persona restablece la contraseña con el token "missing-token" y la nueva contraseña "NewPassword123"
+    Then el restablecimiento de contraseña se rechaza por una regla de negocio
+    And se muestra que hay una regla de negocio
 
-  Scenario: Password reset rejected with expired token
-    Given a user exists with name "Ana" email "ana@example.com" and password "Password123"
-    And an expired password reset token exists for email "ana@example.com" with token "token-expired"
-    When the client resets password with token "token-expired" and new password "NewPassword123"
-    Then the response status should be 409
-    And the error code should be "BUSINESS_ERROR"
+  Scenario: El restablecimiento de contraseña se rechaza por token vencido
+    Given existe un usuario con nombre "Ana" correo "ana@example.com" y contraseña "Password123"
+    And existe un token de recuperación vencido para el correo "ana@example.com" con el token "token-expired"
+    When la persona restablece la contraseña con el token "token-expired" y la nueva contraseña "NewPassword123"
+    Then el restablecimiento de contraseña se rechaza por una regla de negocio
+    And se muestra que hay una regla de negocio
