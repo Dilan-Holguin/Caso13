@@ -5,6 +5,7 @@ import com.eap08.domesticas.dto.TareaResponse;
 import com.eap08.domesticas.model.Hogar;
 import com.eap08.domesticas.model.Tarea;
 import com.eap08.domesticas.model.Usuario;
+import com.eap08.domesticas.model.UsuarioHogar;
 import com.eap08.domesticas.repository.HogarRepository;
 import com.eap08.domesticas.repository.TareaRepository;
 import com.eap08.domesticas.repository.UsuarioHogarRepository;
@@ -15,8 +16,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.Mockito.*;
@@ -53,6 +56,14 @@ class TareaServiceTest {
         usuario.setEmail(email);
         return usuario;
     }
+
+        private UsuarioHogar crearUsuarioHogar(Usuario usuario, Hogar hogar, String rol) {
+                return UsuarioHogar.builder()
+                                .usuario(usuario)
+                                .hogar(hogar)
+                                .rol(rol)
+                                .build();
+        }
 
     private Hogar crearHogar(Long id) {
         return Hogar.builder()
@@ -119,6 +130,43 @@ class TareaServiceTest {
         assertThat(saved.getEstado()).isEqualTo(Tarea.ESTADO_PENDIENTE);
         assertThat(saved.getDescripcion()).isEqualTo("Después del almuerzo");
     }
+
+        @Test
+        void shouldCreateTaskWithAssignedUserSuccessfully() {
+                Long hogarId = 1L;
+                String emailCreador = "ana@example.com";
+
+                Usuario creador = crearUsuario(emailCreador, 10L);
+                Usuario asignado = crearUsuario("luis@example.com", 20L);
+                asignado.setNombre("Luis");
+                Hogar hogar = crearHogar(hogarId);
+
+                TareaRequest.CreateTareaRequest request = new TareaRequest.CreateTareaRequest(
+                                "Limpiar cocina", "En la noche", "Limpieza", null, 20L);
+
+                Tarea tareaGuardada = Tarea.builder()
+                                .tareaId(100L)
+                                .hogar(hogar)
+                                .asignadoA(asignado)
+                                .titulo("Limpiar cocina")
+                                .descripcion("En la noche")
+                                .categoria("Limpieza")
+                                .estado(Tarea.ESTADO_PENDIENTE)
+                                .build();
+
+                when(usuarioRepo.findByEmail(emailCreador)).thenReturn(Optional.of(creador));
+                when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(10L, hogarId)).thenReturn(true);
+                when(hogarRepo.getReferenceById(hogarId)).thenReturn(hogar);
+                when(usuarioRepo.findById(20L)).thenReturn(Optional.of(asignado));
+                when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(20L, hogarId)).thenReturn(true);
+                when(tareaRepo.save(any(Tarea.class))).thenReturn(tareaGuardada);
+
+                TareaResponse.TareaData result = tareaService.crearTarea(hogarId, request, emailCreador);
+
+                assertThat(result.asignadoA()).isNotNull();
+                assertThat(result.asignadoA().usuarioId()).isEqualTo(20L);
+                assertThat(result.asignadoA().nombre()).isEqualTo("Luis");
+        }
 
     @Test
     void shouldThrowWhenCategoryIsInvalid() {
@@ -255,6 +303,172 @@ class TareaServiceTest {
         Tarea saved = tareaCaptor.getValue();
         assertThat(saved.getFechaLimite()).isNotNull();
         assertThat(saved.getFechaLimite()).isEqualTo(futureDate);
+    }
+
+    @Test
+    void shouldListTasksSuccessfully() {
+        Long hogarId = 1L;
+        String email = "ana@example.com";
+
+        Usuario usuario = crearUsuario(email, 10L);
+        Hogar hogar = crearHogar(hogarId);
+        Usuario asignado = crearUsuario("luis@example.com", 20L);
+                asignado.setNombre("Luis");
+
+        Tarea tarea = Tarea.builder()
+                .tareaId(11L)
+                .hogar(hogar)
+                .asignadoA(asignado)
+                .titulo("Ordenar sala")
+                .categoria("Limpieza")
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .build();
+
+        when(usuarioRepo.findByEmail(email)).thenReturn(Optional.of(usuario));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(10L, hogarId)).thenReturn(true);
+        when(tareaRepo.findWithFilters(hogarId, Tarea.ESTADO_PENDIENTE, "Limpieza", null))
+                .thenReturn(List.of(tarea));
+
+        List<TareaResponse.TareaListData> result = tareaService.listarTareas(
+                hogarId, Tarea.ESTADO_PENDIENTE, "Limpieza", null, email);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).asignadoANombre()).isEqualTo("Luis");
+    }
+
+    @Test
+    void shouldGetTaskSuccessfully() {
+        Long tareaId = 44L;
+        Long hogarId = 1L;
+        String email = "ana@example.com";
+
+        Usuario usuario = crearUsuario(email, 10L);
+        Hogar hogar = crearHogar(hogarId);
+        Usuario asignado = crearUsuario("luis@example.com", 20L);
+                asignado.setNombre("Luis");
+
+        Tarea tarea = Tarea.builder()
+                .tareaId(tareaId)
+                .hogar(hogar)
+                .asignadoA(asignado)
+                .titulo("Pagar servicios")
+                .descripcion("Luz y agua")
+                .categoria("Compras")
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .build();
+
+        when(tareaRepo.findById(tareaId)).thenReturn(Optional.of(tarea));
+        when(usuarioRepo.findByEmail(email)).thenReturn(Optional.of(usuario));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(10L, hogarId)).thenReturn(true);
+
+        TareaResponse.TareaData result = tareaService.obtenerTarea(tareaId, email);
+
+        assertThat(result.tareaId()).isEqualTo(tareaId);
+        assertThat(result.asignadoA()).isNotNull();
+        assertThat(result.asignadoA().nombre()).isEqualTo("Luis");
+    }
+
+    @Test
+    void shouldUpdateTaskAssignmentSuccessfully() {
+        Long tareaId = 77L;
+        Long hogarId = 1L;
+        String emailEditor = "admin@example.com";
+
+        Usuario editor = crearUsuario(emailEditor, 10L);
+        Usuario asignado = crearUsuario("luis@example.com", 20L);
+                asignado.setNombre("Luis");
+        Hogar hogar = crearHogar(hogarId);
+
+        Tarea tarea = Tarea.builder()
+                .tareaId(tareaId)
+                .hogar(hogar)
+                .titulo("Tarea")
+                .descripcion("Descripcion")
+                .categoria("Otro")
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .build();
+
+        Tarea tareaGuardada = Tarea.builder()
+                .tareaId(tareaId)
+                .hogar(hogar)
+                .asignadoA(asignado)
+                .titulo("Tarea")
+                .descripcion("Descripcion")
+                .categoria("Otro")
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .build();
+
+        TareaRequest.UpdateTareaRequest request = new TareaRequest.UpdateTareaRequest(
+                null, null, null, null, 20L);
+
+        when(tareaRepo.findById(tareaId)).thenReturn(Optional.of(tarea));
+        when(usuarioRepo.findByEmail(emailEditor)).thenReturn(Optional.of(editor));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(10L, hogarId)).thenReturn(true);
+        when(usuarioHogarRepo.findByIdUsuarioIdAndIdHogarId(10L, hogarId))
+                .thenReturn(Optional.of(crearUsuarioHogar(editor, hogar, UsuarioHogar.ROL_ADMINISTRADOR)));
+        when(usuarioRepo.findById(20L)).thenReturn(Optional.of(asignado));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(20L, hogarId)).thenReturn(true);
+        when(tareaRepo.save(any(Tarea.class))).thenReturn(tareaGuardada);
+
+        TareaResponse.TareaData result = tareaService.actualizarTarea(tareaId, request, emailEditor);
+
+        assertThat(result.asignadoA()).isNotNull();
+        assertThat(result.asignadoA().usuarioId()).isEqualTo(20L);
+    }
+
+    @Test
+    void shouldThrowWhenAssigningSameUserToTask() {
+        Long tareaId = 78L;
+        Long hogarId = 1L;
+        String emailEditor = "admin@example.com";
+
+        Usuario editor = crearUsuario(emailEditor, 10L);
+        Usuario asignado = crearUsuario("luis@example.com", 20L);
+        Hogar hogar = crearHogar(hogarId);
+
+        Tarea tarea = Tarea.builder()
+                .tareaId(tareaId)
+                .hogar(hogar)
+                .asignadoA(asignado)
+                .titulo("Tarea")
+                .descripcion("Descripcion")
+                .categoria("Otro")
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .build();
+
+        TareaRequest.UpdateTareaRequest request = new TareaRequest.UpdateTareaRequest(
+                null, null, null, null, 20L);
+
+        when(tareaRepo.findById(tareaId)).thenReturn(Optional.of(tarea));
+        when(usuarioRepo.findByEmail(emailEditor)).thenReturn(Optional.of(editor));
+        when(usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(10L, hogarId)).thenReturn(true);
+        when(usuarioHogarRepo.findByIdUsuarioIdAndIdHogarId(10L, hogarId))
+                .thenReturn(Optional.of(crearUsuarioHogar(editor, hogar, UsuarioHogar.ROL_ADMINISTRADOR)));
+        when(usuarioRepo.findById(20L)).thenReturn(Optional.of(asignado));
+
+        assertThatThrownBy(() -> tareaService.actualizarTarea(tareaId, request, emailEditor))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("La tarea ya está asignada a este usuario");
+    }
+
+    @Test
+    void shouldDeleteTaskSuccessfully() {
+        Long tareaId = 88L;
+        Long hogarId = 1L;
+        String email = "admin@example.com";
+
+        Usuario usuario = crearUsuario(email, 10L);
+        Hogar hogar = crearHogar(hogarId);
+        Tarea tarea = crearTarea(tareaId, hogar);
+
+        when(tareaRepo.findById(tareaId)).thenReturn(Optional.of(tarea));
+        when(usuarioRepo.findByEmail(email)).thenReturn(Optional.of(usuario));
+        when(usuarioHogarRepo.findByIdUsuarioIdAndIdHogarId(10L, hogarId))
+                .thenReturn(Optional.of(crearUsuarioHogar(usuario, hogar, UsuarioHogar.ROL_ADMINISTRADOR)));
+
+        tareaService.eliminarTarea(tareaId, email);
+
+        verify(tareaRepo).delete(tarea);
     }
 
     @Test
