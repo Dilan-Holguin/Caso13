@@ -11,6 +11,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import java.util.List;
 import java.util.Set;
@@ -26,13 +31,11 @@ public class TareaService {
     private final UsuarioRepository usuarioRepo;
 
     private static final Set<String> CATEGORIAS_VALIDAS = Set.of(
-        Tarea.CAT_LIMPIEZA, Tarea.CAT_COCINA, Tarea.CAT_COMPRAS,
-        Tarea.CAT_MANTENIMIENTO, Tarea.CAT_OTRO
-    );
+            Tarea.CAT_LIMPIEZA, Tarea.CAT_COCINA, Tarea.CAT_COMPRAS,
+            Tarea.CAT_MANTENIMIENTO, Tarea.CAT_OTRO);
 
     private static final Set<String> ESTADOS_VALIDOS = Set.of(
-        Tarea.ESTADO_PENDIENTE, Tarea.ESTADO_EN_PROGRESO, Tarea.ESTADO_COMPLETADA
-    );
+            Tarea.ESTADO_PENDIENTE, Tarea.ESTADO_EN_PROGRESO, Tarea.ESTADO_COMPLETADA);
 
     @Transactional
     public TareaData crearTarea(Long hogarId, CreateTareaRequest request, String emailCreador) {
@@ -42,12 +45,12 @@ public class TareaService {
         Hogar hogar = obtenerHogarRef(hogarId);
 
         Tarea.TareaBuilder builder = Tarea.builder()
-            .hogar(hogar)
-            .titulo(request.titulo())
-            .descripcion(request.descripcion())
-            .categoria(request.categoria())
-            .estado(Tarea.ESTADO_PENDIENTE)
-            .fechaLimite(request.fechaLimite());
+                .hogar(hogar)
+                .titulo(request.titulo())
+                .descripcion(request.descripcion())
+                .categoria(request.categoria())
+                .estado(Tarea.ESTADO_PENDIENTE)
+                .fechaLimite(request.fechaLimite());
 
         if (request.asignadoAId() != null) {
             validarPerteneceAHogar(hogarId, request.asignadoAId());
@@ -62,15 +65,15 @@ public class TareaService {
 
     @Transactional(readOnly = true)
     public List<TareaListData> listarTareas(Long hogarId, String estado,
-                                            String categoria, Long asignadoA,
-                                            String emailSolicitante) {
+            String categoria, Long asignadoA,
+            String emailSolicitante) {
         validarEsMiembro(hogarId, emailSolicitante);
 
         List<Tarea> tareas = tareaRepo.findWithFilters(hogarId, estado, categoria, asignadoA);
 
         return tareas.stream()
-            .map(this::toTareaListData)
-            .toList();
+                .map(this::toTareaListData)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -85,9 +88,12 @@ public class TareaService {
         Tarea tarea = obtenerTareaPorId(tareaId);
         validarEsMiembro(tarea.getHogar().getHogarId(), emailEditor);
 
-        if (request.titulo() != null) tarea.setTitulo(request.titulo());
-        if (request.descripcion() != null) tarea.setDescripcion(request.descripcion());
-        if (request.fechaLimite() != null) tarea.setFechaLimite(request.fechaLimite());
+        if (request.titulo() != null)
+            tarea.setTitulo(request.titulo());
+        if (request.descripcion() != null)
+            tarea.setDescripcion(request.descripcion());
+        if (request.fechaLimite() != null)
+            tarea.setFechaLimite(request.fechaLimite());
 
         if (request.categoria() != null) {
             validarCategoria(request.categoria());
@@ -95,8 +101,18 @@ public class TareaService {
         }
 
         if (request.asignadoAId() != null) {
-            validarPerteneceAHogar(tarea.getHogar().getHogarId(), request.asignadoAId());
-            tarea.setAsignadoA(usuarioRepo.findById(request.asignadoAId()).orElse(null));
+            validarPuedeAsignar(tarea.getHogar().getHogarId(), emailEditor);
+
+            Usuario usuarioAsignado = usuarioRepo.findById(request.asignadoAId())
+                    .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Usuario no encontrado"));
+
+            if (tarea.getAsignadoA() != null
+                    && tarea.getAsignadoA().getUsuarioId().equals(usuarioAsignado.getUsuarioId())) {
+                throw new ResponseStatusException(CONFLICT, "La tarea ya está asignada a este usuario");
+            }
+
+            validarPerteneceAHogar(tarea.getHogar().getHogarId(), usuarioAsignado.getUsuarioId());
+            tarea.setAsignadoA(usuarioAsignado);
         }
 
         Tarea actualizada = tareaRepo.save(tarea);
@@ -137,7 +153,7 @@ public class TareaService {
 
     private void validarEsMiembro(Long hogarId, String email) {
         Usuario usuario = usuarioRepo.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
         if (!usuarioHogarRepo.existsByIdUsuarioIdAndIdHogarId(usuario.getUsuarioId(), hogarId)) {
             throw new RuntimeException("No perteneces a este hogar");
         }
@@ -145,12 +161,25 @@ public class TareaService {
 
     private void validarEsAdministrador(Long hogarId, String email) {
         Usuario usuario = usuarioRepo.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
         UsuarioHogar miembro = usuarioHogarRepo
-            .findByIdUsuarioIdAndIdHogarId(usuario.getUsuarioId(), hogarId)
-            .orElseThrow(() -> new RuntimeException("No perteneces a este hogar"));
+                .findByIdUsuarioIdAndIdHogarId(usuario.getUsuarioId(), hogarId)
+                .orElseThrow(() -> new RuntimeException("No perteneces a este hogar"));
         if (!UsuarioHogar.ROL_ADMINISTRADOR.equals(miembro.getRol())) {
             throw new RuntimeException("Solo el Administrador puede eliminar tareas");
+        }
+    }
+
+    private void validarPuedeAsignar(Long hogarId, String email) {
+        Usuario usuario = usuarioRepo.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        UsuarioHogar miembro = usuarioHogarRepo
+                .findByIdUsuarioIdAndIdHogarId(usuario.getUsuarioId(), hogarId)
+                .orElseThrow(() -> new ResponseStatusException(FORBIDDEN, "No tiene permisos para asignar tareas"));
+
+        if (!UsuarioHogar.ROL_ADMINISTRADOR.equals(miembro.getRol())) {
+            throw new ResponseStatusException(FORBIDDEN, "No tiene permisos para asignar tareas");
         }
     }
 
@@ -162,7 +191,7 @@ public class TareaService {
 
     private Tarea obtenerTareaPorId(Long tareaId) {
         return tareaRepo.findById(tareaId)
-            .orElseThrow(() -> new RuntimeException("Tarea no encontrada"));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Tarea no encontrada"));
     }
 
     private Hogar obtenerHogarRef(Long hogarId) {
@@ -175,34 +204,31 @@ public class TareaService {
         AsignadoInfo asignado = null;
         if (t.getAsignadoA() != null) {
             asignado = new AsignadoInfo(
-                t.getAsignadoA().getUsuarioId(),
-                t.getAsignadoA().getNombre(),
-                t.getAsignadoA().getEmail()
-            );
+                    t.getAsignadoA().getUsuarioId(),
+                    t.getAsignadoA().getNombre(),
+                    t.getAsignadoA().getEmail());
         }
         return new TareaData(
-            t.getTareaId(),
-            t.getHogar().getHogarId(),
-            t.getTitulo(),
-            t.getDescripcion(),
-            t.getCategoria(),
-            t.getEstado(),
-            t.getFechaLimite(),
-            asignado,
-            t.getCreatedAt(),
-            t.getUpdatedAt()
-        );
+                t.getTareaId(),
+                t.getHogar().getHogarId(),
+                t.getTitulo(),
+                t.getDescripcion(),
+                t.getCategoria(),
+                t.getEstado(),
+                t.getFechaLimite(),
+                asignado,
+                t.getCreatedAt(),
+                t.getUpdatedAt());
     }
 
     private TareaListData toTareaListData(Tarea t) {
         String nombreAsignado = t.getAsignadoA() != null ? t.getAsignadoA().getNombre() : null;
         return new TareaListData(
-            t.getTareaId(),
-            t.getTitulo(),
-            t.getCategoria(),
-            t.getEstado(),
-            t.getFechaLimite(),
-            nombreAsignado
-        );
+                t.getTareaId(),
+                t.getTitulo(),
+                t.getCategoria(),
+                t.getEstado(),
+                t.getFechaLimite(),
+                nombreAsignado);
     }
 }
