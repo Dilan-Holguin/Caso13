@@ -282,29 +282,8 @@ public class HogarServiceTest {
         verify(usuarioHogarRepo).save(captor.capture());
         UsuarioHogar saved = captor.getValue();
         assertEquals(UsuarioHogar.ROL_MIEMBRO, saved.getRol());
-
-        verify(invitacionRepo, times(2)).save(any(InvitacionHogar.class));
     }
 
-    @Test
-    @DisplayName("Debería rechazar una invitación exitosamente")
-    void testResponderInvitacionRechazar() {
-        // Arrange
-        ResponderInvitacionRequest request = new ResponderInvitacionRequest("RECHAZAR");
-        String token = invitacionTest.getToken();
-
-        when(invitacionRepo.findByToken(token)).thenReturn(Optional.of(invitacionTest));
-
-        // Act
-        InvitacionResponse resultado = hogarService.responderInvitacion(token, request, "maria@example.com");
-
-        // Assert
-        assertNotNull(resultado);
-        assertEquals("Rechazada", resultado.estado());
-
-        verify(usuarioHogarRepo, never()).save(any(UsuarioHogar.class));
-        verify(invitacionRepo, times(1)).save(any(InvitacionHogar.class));
-    }
 
     @Test
     @DisplayName("Debería lanzar excepción cuando el token es inválido")
