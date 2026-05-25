@@ -136,6 +136,20 @@ Todos los prefijos bajo `/api`.
 | `PATCH` | `/api/tasks/{tareaId}/status` | Cambiar estado de tarea | JWT (Miembro) |
 | `DELETE` | `/api/tasks/{tareaId}` | Eliminar tarea | JWT (Admin) |
 
+### Reportes — `/api/households/{id}/reports`
+
+| Método | Endpoint | Descripción | Auth |
+|--------|----------|-------------|------|
+| `GET` | `/api/households/{id}/reports/distribution` | Distribución de tareas por miembro (total, pendientes, en progreso, completadas) | JWT (Miembro) |
+| `GET` | `/api/households/{id}/reports/cumplimiento` | Cumplimiento por usuario (tasa, a tiempo, tarde) | JWT (Miembro) |
+
+### Páginas HTML — `/join` y `/reset-password`
+
+| Método | Endpoint | Descripción | Auth |
+|--------|----------|-------------|------|
+| `GET` | `/join?token=` | Página para aceptar o rechazar invitación a un hogar | No |
+| `GET` | `/reset-password?token=` | Página para establecer nueva contraseña | No |
+
 ### Flujo completo de uso
 
 1. **Registro** → `POST /api/auth/register`
@@ -152,6 +166,10 @@ Todos los prefijos bajo `/api`.
 ### Categorías de tarea
 
 `Limpieza`, `Cocina`, `Compras`, `Mantenimiento`, `Otro`
+
+### Prioridades de tarea
+
+`Alta`, `Media`, `Baja`
 
 ---
 
@@ -172,8 +190,10 @@ src/main/java/com/eap08/domesticas/
 src/main/resources/
 ├── application.properties         
 └── db/migration/
-    ├── V1__init_schema.sql        ← esquema db
-    └── V2__invitacion_hogar.sql   ← tabla de invitaciones
+    ├── V1__init_schema.sql        ← esquema base
+    ├── V2__invitacion_hogar.sql   ← tabla de invitaciones
+    ├── V3__indices_y_procedimientos.sql ← índices y procedimientos
+    └── V4__add_prioridad_tarea.sql ← prioridad y completada_at en tareas
 
 scripts/
 ├── deploy-db.sh                   ← despliegue de migraciones

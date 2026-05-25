@@ -379,17 +379,23 @@ else
     fail "Listar miembros" "HTTP $HTTP → $COUNT miembros → $BODY"
 fi
 
+# Extraer el usuarioId de Ana para usarlo en asignaciones
+ANA_ID=$(echo "$BODY" | python3 -c "import sys,json; miembros=json.load(sys.stdin); [print(m['usuarioId']) for m in miembros if m.get('nombre')=='Ana']" 2>/dev/null || echo "")
+if [[ -n "$ANA_ID" ]]; then
+    info "Ana tiene usuarioId=$ANA_ID"
+fi
+
 # ═══════════════════════════════════════════════════════════
-step "17. Pedro crea tarea en el hogar (como miembro)"
+step "17. Pedro crea tarea en el hogar asignada a Ana"
 show "curl -X POST ${BASE_URL}/api/households/${HOGAR_ID}/tasks" \
      "-H \"Content-Type: application/json\"" \
      "-H \"Authorization: Bearer <token_pedro>\"" \
-     "-d '{\"titulo\":\"Sacar la basura\",\"categoria\":\"Mantenimiento\"}'"
+     "-d '{\"titulo\":\"Sacar la basura\",\"categoria\":\"Mantenimiento\",\"asignadoAId\":${ANA_ID}}'"
 
 RESP=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/api/households/${HOGAR_ID}/tasks" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer ${TOKEN_PEDRO}" \
-    -d '{"titulo":"Sacar la basura","categoria":"Mantenimiento"}')
+    -d '{"titulo":"Sacar la basura","categoria":"Mantenimiento","asignadoAId":'"$ANA_ID"'}')
 HTTP=$(echo "$RESP" | tail -1)
 BODY=$(echo "$RESP" | sed '$d')
 
@@ -448,7 +454,101 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════════
-step "21. Endpoint publico sin token (debe funcionar)"
+step "21. Asignar prioridad a tarea"
+show "curl -X PUT ${BASE_URL}/api/tasks/${T2_ID}" \
+     "-H \"Content-Type: application/json\"" \
+     "-H \"Authorization: Bearer <token_ana>\"" \
+     "-d '{\"prioridad\":\"Alta\"}'"
+
+RESP=$(curl -s -w "\n%{http_code}" -X PUT "${BASE_URL}/api/tasks/${T2_ID}" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${TOKEN_ANA}" \
+    -d '{"prioridad":"Alta"}')
+HTTP=$(echo "$RESP" | tail -1)
+BODY=$(echo "$RESP" | sed '$d')
+
+PRIO=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('prioridad',''))" 2>/dev/null || echo "")
+if [[ "$HTTP" =~ ^2 && "$PRIO" = "Alta" ]]; then
+    ok "Asignar prioridad → $HTTP (prioridad: Alta)"
+else
+    fail "Asignar prioridad" "HTTP $HTTP → $BODY"
+fi
+
+# ═══════════════════════════════════════════════════════════
+step "22. Verificar prioridad en detalle"
+show "curl -X GET ${BASE_URL}/api/tasks/${T2_ID}" \
+     "-H \"Authorization: Bearer <token_ana>\""
+
+RESP=$(curl -s -w "\n%{http_code}" -X GET "${BASE_URL}/api/tasks/${T2_ID}" \
+    -H "Authorization: Bearer ${TOKEN_ANA}")
+HTTP=$(echo "$RESP" | tail -1)
+BODY=$(echo "$RESP" | sed '$d')
+
+PRIO=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('prioridad',''))" 2>/dev/null || echo "")
+if [[ "$HTTP" =~ ^2 && "$PRIO" = "Alta" ]]; then
+    ok "Verificar prioridad → $HTTP (prioridad: $PRIO)"
+else
+    fail "Verificar prioridad" "HTTP $HTTP → $BODY"
+fi
+
+# ═══════════════════════════════════════════════════════════
+step "23. Completar tarea y verificar completadaAt"
+show "curl -X PATCH ${BASE_URL}/api/tasks/${T2_ID}/status" \
+     "-H \"Content-Type: application/json\"" \
+     "-H \"Authorization: Bearer <token_ana>\"" \
+     "-d '{\"estado\":\"Completada\"}'"
+
+RESP=$(curl -s -w "\n%{http_code}" -X PATCH "${BASE_URL}/api/tasks/${T2_ID}/status" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${TOKEN_ANA}" \
+    -d '{"estado":"Completada"}')
+HTTP=$(echo "$RESP" | tail -1)
+BODY=$(echo "$RESP" | sed '$d')
+
+ESTADO=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('estado',''))" 2>/dev/null || echo "")
+COMPLETADA=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('completadaAt','N/A'))" 2>/dev/null || echo "")
+if [[ "$HTTP" =~ ^2 && "$ESTADO" = "Completada" && "$COMPLETADA" != "null" && "$COMPLETADA" != "" ]]; then
+    ok "Completar tarea → $HTTP (completadaAt: $COMPLETADA)"
+else
+    fail "Completar tarea" "HTTP $HTTP → estado=$ESTADO completadaAt=$COMPLETADA"
+fi
+
+# ═══════════════════════════════════════════════════════════
+step "24. Reporte de distribucion"
+show "curl -X GET \"${BASE_URL}/api/households/${HOGAR_ID}/reports/distribution\"" \
+     "-H \"Authorization: Bearer <token_ana>\""
+
+RESP=$(curl -s -w "\n%{http_code}" -X GET "${BASE_URL}/api/households/${HOGAR_ID}/reports/distribution" \
+    -H "Authorization: Bearer ${TOKEN_ANA}")
+HTTP=$(echo "$RESP" | tail -1)
+BODY=$(echo "$RESP" | sed '$d')
+
+COUNT=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); miembros=d.get('miembros',[]); print(len(miembros))" 2>/dev/null || echo "0")
+if [[ "$HTTP" =~ ^2 && "$COUNT" -ge 1 ]]; then
+    ok "Reporte distribucion → $HTTP ($COUNT miembros)"
+else
+    fail "Reporte distribucion" "HTTP $HTTP → $COUNT miembros → $BODY"
+fi
+
+# ═══════════════════════════════════════════════════════════
+step "25. Reporte de cumplimiento"
+show "curl -X GET \"${BASE_URL}/api/households/${HOGAR_ID}/reports/cumplimiento\"" \
+     "-H \"Authorization: Bearer <token_ana>\""
+
+RESP=$(curl -s -w "\n%{http_code}" -X GET "${BASE_URL}/api/households/${HOGAR_ID}/reports/cumplimiento" \
+    -H "Authorization: Bearer ${TOKEN_ANA}")
+HTTP=$(echo "$RESP" | tail -1)
+BODY=$(echo "$RESP" | sed '$d')
+
+COUNT=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); usuarios=d.get('usuarios',[]); print(len(usuarios))" 2>/dev/null || echo "0")
+if [[ "$HTTP" =~ ^2 && "$COUNT" -ge 1 ]]; then
+    ok "Reporte cumplimiento → $HTTP ($COUNT usuarios)"
+else
+    fail "Reporte cumplimiento" "HTTP $HTTP → $COUNT usuarios → $BODY"
+fi
+
+# ═══════════════════════════════════════════════════════════
+step "26. Endpoint publico sin token (debe funcionar)"
 show "curl -X POST ${BASE_URL}/api/auth/forgot-password" \
      "-H \"Content-Type: application/json\"" \
      "-d '{\"email\":\"inexistente@test.com\"}'"
@@ -465,7 +565,7 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════════
-step "22. Endpoint protegido sin token (debe fallar)"
+step "27. Endpoint protegido sin token (debe fallar)"
 show "curl -X GET ${BASE_URL}/api/households/${HOGAR_ID}/tasks"
 
 RESP=$(curl -s -w "\n%{http_code}" -X GET "${BASE_URL}/api/households/${HOGAR_ID}/tasks" \

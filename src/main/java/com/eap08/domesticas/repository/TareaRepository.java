@@ -34,9 +34,22 @@ public interface TareaRepository extends JpaRepository<Tarea, Long> {
        "ORDER BY t.fechaLimite ASC")
     List<Tarea> findTareasVencidas(@Param("hogarId") Long hogarId);
 
-    @Query("SELECT t.asignadoA.usuarioId, t.asignadoA.nombre, COUNT(t) AS total " +
-       "FROM Tarea t WHERE t.hogar.hogarId = :hogarId AND t.estado = 'Completada' " +
-       "GROUP BY t.asignadoA.usuarioId, t.asignadoA.nombre ORDER BY total DESC")
-    List<Object[]> countTareasCompletadasPorMiembro(@Param("hogarId") Long hogarId);
+    @Query("SELECT u.usuarioId, u.nombre, COUNT(t) AS total, " +
+           "SUM(CASE WHEN t.estado = 'Pendiente' THEN 1 ELSE 0 END) AS pendientes, " +
+           "SUM(CASE WHEN t.estado = 'En_progreso' THEN 1 ELSE 0 END) AS enProgreso, " +
+           "SUM(CASE WHEN t.estado = 'Completada' THEN 1 ELSE 0 END) AS completadas " +
+           "FROM Tarea t LEFT JOIN t.asignadoA u " +
+           "WHERE t.hogar.hogarId = :hogarId " +
+           "GROUP BY u.usuarioId, u.nombre ORDER BY total DESC")
+    List<Object[]> distribucionPorMiembro(@Param("hogarId") Long hogarId);
+
+    @Query("SELECT u.usuarioId, u.nombre, COUNT(t) AS totalAsignadas, " +
+           "SUM(CASE WHEN t.estado = 'Completada' THEN 1 ELSE 0 END) AS completadas, " +
+           "SUM(CASE WHEN t.estado = 'Completada' AND t.completadaAt IS NOT NULL AND t.fechaLimite IS NOT NULL AND t.completadaAt <= t.fechaLimite THEN 1 ELSE 0 END) AS aTiempo, " +
+           "SUM(CASE WHEN t.estado = 'Completada' AND t.completadaAt IS NOT NULL AND t.fechaLimite IS NOT NULL AND t.completadaAt > t.fechaLimite THEN 1 ELSE 0 END) AS tarde " +
+           "FROM Tarea t LEFT JOIN t.asignadoA u " +
+           "WHERE t.hogar.hogarId = :hogarId " +
+           "GROUP BY u.usuarioId, u.nombre ORDER BY completadas DESC")
+    List<Object[]> cumplimientoPorUsuario(@Param("hogarId") Long hogarId);
 
 }

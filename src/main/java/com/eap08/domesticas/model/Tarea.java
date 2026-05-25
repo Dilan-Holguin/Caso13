@@ -44,6 +44,12 @@ public class Tarea {
     @Column(name = "fecha_limite")
     private LocalDateTime fechaLimite;
 
+    @Column(length = 10)
+    private String prioridad;
+
+    @Column(name = "completada_at")
+    private LocalDateTime completadaAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -61,4 +67,8 @@ public class Tarea {
     public static final String CAT_COMPRAS       = "Compras";
     public static final String CAT_MANTENIMIENTO = "Mantenimiento";
     public static final String CAT_OTRO          = "Otro";
+
+    public static final String PRIORIDAD_ALTA  = "Alta";
+    public static final String PRIORIDAD_MEDIA = "Media";
+    public static final String PRIORIDAD_BAJA  = "Baja";
 }
