@@ -2,6 +2,7 @@ package com.eap08.domesticas.service;
 
 import com.eap08.domesticas.dto.TareaRequest.*;
 import com.eap08.domesticas.dto.TareaResponse.*;
+import com.eap08.domesticas.dto.ReporteResponse.*;
 import com.eap08.domesticas.model.*;
 import com.eap08.domesticas.repository.HogarRepository;
 import com.eap08.domesticas.repository.TareaRepository;
@@ -12,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -34,6 +37,10 @@ public class TareaService {
         Tarea.ESTADO_PENDIENTE, Tarea.ESTADO_EN_PROGRESO, Tarea.ESTADO_COMPLETADA
     );
 
+    private static final Set<String> PRIORIDADES_VALIDAS = Set.of(
+        Tarea.PRIORIDAD_ALTA, Tarea.PRIORIDAD_MEDIA, Tarea.PRIORIDAD_BAJA
+    );
+
     @Transactional
     public TareaData crearTarea(Long hogarId, CreateTareaRequest request, String emailCreador) {
         validarEsMiembro(hogarId, emailCreador);
@@ -47,7 +54,8 @@ public class TareaService {
             .descripcion(request.descripcion())
             .categoria(request.categoria())
             .estado(Tarea.ESTADO_PENDIENTE)
-            .fechaLimite(request.fechaLimite());
+            .fechaLimite(request.fechaLimite())
+            .prioridad(request.prioridad());
 
         if (request.asignadoAId() != null) {
             validarPerteneceAHogar(hogarId, request.asignadoAId());
@@ -89,6 +97,11 @@ public class TareaService {
         if (request.descripcion() != null) tarea.setDescripcion(request.descripcion());
         if (request.fechaLimite() != null) tarea.setFechaLimite(request.fechaLimite());
 
+        if (request.prioridad() != null) {
+            validarPrioridad(request.prioridad());
+            tarea.setPrioridad(request.prioridad());
+        }
+
         if (request.categoria() != null) {
             validarCategoria(request.categoria());
             tarea.setCategoria(request.categoria());
@@ -114,6 +127,9 @@ public class TareaService {
         }
 
         tarea.setEstado(request.estado());
+        if (Tarea.ESTADO_COMPLETADA.equals(request.estado())) {
+            tarea.setCompletadaAt(LocalDateTime.now());
+        }
         Tarea actualizada = tareaRepo.save(tarea);
         log.info("Estado de tarea {} cambiado a {} por {}", tareaId, request.estado(), emailEditor);
         return toTareaData(actualizada);
@@ -127,11 +143,62 @@ public class TareaService {
         log.info("Tarea {} eliminada por {}", tareaId, emailSolicitante);
     }
 
+    // --- Reportes ---
+
+    @Transactional(readOnly = true)
+    public ReporteDistribucion generarReporteDistribucion(Long hogarId, String emailSolicitante) {
+        validarEsMiembro(hogarId, emailSolicitante);
+
+        List<Object[]> rows = tareaRepo.distribucionPorMiembro(hogarId);
+        List<MiembroDistribucion> miembros = new ArrayList<>();
+
+        for (Object[] row : rows) {
+            Long usuarioId = (Long) row[0];
+            String nombre = usuarioId == null ? "Sin asignar" : (String) row[1];
+            if (usuarioId == null) usuarioId = 0L;
+            Long total = (Long) row[2];
+            Long pendientes = (Long) row[3];
+            Long enProgreso = (Long) row[4];
+            Long completadas = (Long) row[5];
+            miembros.add(new MiembroDistribucion(usuarioId, nombre, total, pendientes, enProgreso, completadas));
+        }
+
+        return new ReporteDistribucion(hogarId, miembros);
+    }
+
+    @Transactional(readOnly = true)
+    public ReporteCumplimiento generarReporteCumplimiento(Long hogarId, String emailSolicitante) {
+        validarEsMiembro(hogarId, emailSolicitante);
+
+        List<Object[]> rows = tareaRepo.cumplimientoPorUsuario(hogarId);
+        List<UsuarioCumplimiento> usuarios = new ArrayList<>();
+
+        for (Object[] row : rows) {
+            Long usuarioId = (Long) row[0];
+            String nombre = usuarioId == null ? "Sin asignar" : (String) row[1];
+            if (usuarioId == null) usuarioId = 0L;
+            Long totalAsignadas = (Long) row[2];
+            Long completadas = (Long) row[3];
+            Long aTiempo = (Long) row[4];
+            Long tarde = (Long) row[5];
+            double tasa = totalAsignadas > 0 ? (completadas.doubleValue() / totalAsignadas.doubleValue()) * 100.0 : 0.0;
+            usuarios.add(new UsuarioCumplimiento(usuarioId, nombre, totalAsignadas, completadas, aTiempo, tarde, Math.round(tasa * 10.0) / 10.0));
+        }
+
+        return new ReporteCumplimiento(hogarId, usuarios);
+    }
+
     // --- Metodos privados de apoyo ---
 
     private void validarCategoria(String categoria) {
         if (!CATEGORIAS_VALIDAS.contains(categoria)) {
             throw new RuntimeException("Categoria no valida: " + categoria);
+        }
+    }
+
+    private void validarPrioridad(String prioridad) {
+        if (prioridad != null && !PRIORIDADES_VALIDAS.contains(prioridad)) {
+            throw new RuntimeException("Prioridad no valida: " + prioridad + ". Usa: Alta, Media, Baja");
         }
     }
 
@@ -187,7 +254,9 @@ public class TareaService {
             t.getDescripcion(),
             t.getCategoria(),
             t.getEstado(),
+            t.getPrioridad(),
             t.getFechaLimite(),
+            t.getCompletadaAt(),
             asignado,
             t.getCreatedAt(),
             t.getUpdatedAt()
@@ -201,6 +270,7 @@ public class TareaService {
             t.getTitulo(),
             t.getCategoria(),
             t.getEstado(),
+            t.getPrioridad(),
             t.getFechaLimite(),
             nombreAsignado
         );

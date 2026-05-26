@@ -11,7 +11,9 @@ public class TareaResponse {
         String descripcion,
         String categoria,
         String estado,
+        String prioridad,
         LocalDateTime fechaLimite,
+        LocalDateTime completadaAt,
         AsignadoInfo asignadoA,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
@@ -28,6 +30,7 @@ public class TareaResponse {
         String titulo,
         String categoria,
         String estado,
+        String prioridad,
         LocalDateTime fechaLimite,
         String asignadoANombre
     ) {}

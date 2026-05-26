@@ -17,6 +17,7 @@ public class TareaRequest {
         String categoria,
         @Future(message = "La fecha limite debe ser futura")
         LocalDateTime fechaLimite,
+        String prioridad,
         Long asignadoAId
     ) {}
 
@@ -27,6 +28,7 @@ public class TareaRequest {
         String categoria,
         @Future(message = "La fecha limite debe ser futura")
         LocalDateTime fechaLimite,
+        String prioridad,
         Long asignadoAId
     ) {}
 
